@@ -19,8 +19,11 @@ def deploy_key(ctx, group):
     ssh_pub_key = os.path.join(ssh_dir, 'authorized_keys')
 
     for gn, gv in groups.iteritems():
+        keyname = gv.get('keyname')
+        pub_key_path = os.path.join(config.KEY_DIR, '%s.pub' % keyname)
+        if not keyname or not os.path.exists(pub_key_path):
+            ctx.fail('key name %s not exist' % keyname)
         logger.info('Deploy key to %s' % gn)
-        pub_key_path = os.path.join(config.KEY_DIR, '%s.pub' % gv['keyname'])
         logger.info('Key path %s' % pub_key_path)
         with open(pub_key_path, 'r') as f:
             key = f.readline().strip()

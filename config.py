@@ -15,6 +15,6 @@ REDIS_FILE_PATH = os.path.join(SRC_DIR, REDIS_FILE_NAME)
 
 HOSTS = yaml.load(open('hosts.yaml'))
 
-TIMEOUT = 4
-SUDO_PREFIX = "sudo -S -p '' "
-SHELL = '/bin/bash -l -c '
+SSH_TIMEOUT = 4
+SUDO_PREFIX = "sudo -S -p ''"
+SHELL = '/bin/bash -l -c'

@@ -9,6 +9,7 @@ virt:
 unknown:
   username: hunantv
   password: hunantv123
+  keyname: rsa
   servers:
     - 10.1.201.49
 

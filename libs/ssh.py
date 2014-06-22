@@ -18,7 +18,7 @@ class SSHClient(object):
             username=username, \
             password=password, \
             key_filename=key_filename, \
-            timeout=self.TIMEOUT, \
+            timeout=config.SSH_TIMEOUT, \
         )
 
     def close(self):
@@ -26,11 +26,21 @@ class SSHClient(object):
             self.client.close()
             self.client = None
 
-    def execute(self, command, sudo=False):
+    def execute(self, command, sudo=False, shell=True):
         feed_password = False
+        c = []
+
         if sudo and self.username != "root":
-            command = config.SUDO_PREFIX + config.SHELL + '"%s"' % shell_escape(command)
+            c.append(config.SUDO_PREFIX)
             feed_password = self.password is not None and len(self.password) > 0
+
+        if shell:
+            c.append(config.SHELL)
+            c.append('"%s"' % shell_escape(command))
+        else:
+            c.append(command)
+
+        command = ' '.join(c)
         stdin, stdout, stderr = self.client.exec_command(command)
         if feed_password:
             stdin.write(self.password + "\n")
