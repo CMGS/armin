@@ -2,8 +2,11 @@
 #coding:utf-8
 
 import config
+import logging
 import paramiko
 from utils import shell_escape
+
+logger = logging.getLogger(__name__)
 
 class SSHClient(object):
     "A wrapper of paramiko.SSHClient"
@@ -45,11 +48,19 @@ class SSHClient(object):
         if feed_password:
             stdin.write(self.password + "\n")
             stdin.flush()
-        return {
-            'out': stdout, \
-            'err': stderr, \
-            'retval': stdout.channel.recv_exit_status, \
-        }
+        return stdout, stderr, stdout.channel.recv_exit_status()
+
+    def run_command(self, command, sudo=False, shell=True):
+        logger.debug(command)
+        out, err, retval = self.execute(command, sudo, shell)
+        if retval != 0:
+            for line in err:
+                logger.debug(line.strip())
+            logger.info('Run command failed')
+            return
+        for line in out:
+            logger.debug(line.strip())
+        logger.info('Run command succeeded')
 
     def get_transport(self):
         return self.client.get_transport()

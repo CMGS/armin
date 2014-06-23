@@ -21,6 +21,7 @@ def build_redis(ctx, group):
         version, redis_file_path = get_path(ctx, gv, 'redis', config.SRC_DIR, config.REDIS_PATTERN)
         logger.info('Redis %s tar in %s' % (version, redis_file_path))
         tar_name = config.REDIS_PATTERN % version
+        dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
         for server in gv['servers']:
             logger.info('Connect to %s' % server)
             try:
@@ -41,6 +42,8 @@ def build_redis(ctx, group):
                 scp_file(ssh, redis_file_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, tar_name)
                 extract_tar(ssh, remote_path, config.REMOTE_SCP_DIR)
+                remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname)
+                make_and_install(ssh, remote_path)
             except Exception:
                 logger.exception('Process in %s failed' % server)
             else:
@@ -58,8 +61,10 @@ def extract_tar(ssh, remote_path, dst_path):
     command = command.format(
         remote_path=remote_path, dst_path=dst_path
     )
-    logger.debug(command)
-    out, _, _ = ssh.execute(command, sudo=True)
-    for line in out:
-        logger.debug(line.strip())
+    ssh.run_command(command)
+
+def make_and_install(ssh, remote_path):
+    command = 'cd {remote_path}; make install'
+    command = command.format(remote_path=remote_path)
+    ssh.run_command(command)
 

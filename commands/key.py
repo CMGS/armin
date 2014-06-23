@@ -36,8 +36,8 @@ def deploy_key(ctx, group):
                 )
                 commands = commands.format(ssh_pub_key=ssh_pub_key, ssh_dir=ssh_dir)
                 logger.debug(commands)
-                ret = ssh.execute(commands, sudo=True)
-                if not check_key(ret['out'], key):
+                stdout, _, _ = ssh.execute(commands, sudo=True)
+                if not check_key(stdout, key):
                     continue
                 commands = (
                     'echo "{key}" >> {ssh_pub_key};'
@@ -45,8 +45,8 @@ def deploy_key(ctx, group):
                 )
                 commands = commands.format(ssh_pub_key=ssh_pub_key, key=key)
                 logger.debug(commands)
-                ret = ssh.execute(commands, sudo=True)
-                if ret['retval']() == 0:
+                _, _, retval = ssh.execute(commands, sudo=True)
+                if retval == 0:
                     logger.info('Deploy succeeded')
                 else:
                     logger.warn('Deploy failed')
