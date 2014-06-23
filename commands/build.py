@@ -61,10 +61,14 @@ def extract_tar(ssh, remote_path, dst_path):
     command = command.format(
         remote_path=remote_path, dst_path=dst_path
     )
-    ssh.run_command(command)
+    for line in ssh.stream_execute(command):
+        logger.debug(line.strip())
+    logger.info('Extract succeed')
 
 def make_and_install(ssh, remote_path):
     command = 'cd {remote_path}; make install'
     command = command.format(remote_path=remote_path)
-    ssh.run_command(command)
+    for line in ssh.stream_execute(command):
+        logger.debug(line.strip())
+    logger.info('Make install succeed')
 

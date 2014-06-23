@@ -2,6 +2,7 @@
 #coding:utf-8
 
 import config
+import select
 import logging
 import paramiko
 from utils import shell_escape
@@ -29,7 +30,7 @@ class SSHClient(object):
             self.client.close()
             self.client = None
 
-    def execute(self, command, sudo=False, shell=True):
+    def parse_command(self, command, sudo=False, shell=True):
         feed_password = False
         c = []
 
@@ -44,23 +45,30 @@ class SSHClient(object):
             c.append(command)
 
         command = ' '.join(c)
+        return feed_password, command
+
+    def execute(self, command, sudo=False, shell=True):
+        feed_password, command = self.parse_command(command, sudo, shell)
         stdin, stdout, stderr = self.client.exec_command(command)
         if feed_password:
             stdin.write(self.password + "\n")
             stdin.flush()
         return stdout, stderr, stdout.channel.recv_exit_status()
 
-    def run_command(self, command, sudo=False, shell=True):
-        logger.debug(command)
-        out, err, retval = self.execute(command, sudo, shell)
-        if retval != 0:
-            for line in err:
-                logger.debug(line.strip())
-            logger.info('Run command failed')
-            return
-        for line in out:
-            logger.debug(line.strip())
-        logger.info('Run command succeeded')
+    def stream_execute(self, command, sudo=False, shell=True, bufsize=-1):
+        feed_password, command = self.parse_command(command, sudo, shell)
+        chan = self.client.get_transport().open_session()
+        chan.exec_command(command)
+        stdin = chan.makefile('wb', bufsize)
+        if feed_password:
+            stdin.write(self.password + "\n")
+            stdin.flush()
+        while True:
+            rl, wl, xl = select.select([chan],[],[],0.0)
+            if chan.exit_status_ready():
+                break
+            if len(rl) > 0:
+                yield chan.recv(1024)
 
     def get_transport(self):
         return self.client.get_transport()
