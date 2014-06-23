@@ -6,7 +6,7 @@ import click
 import config
 import logging
 from libs.ssh import SSHClient
-from utils import get_group
+from utils import get_group, get_path
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +19,7 @@ def deploy_key(ctx, group):
     ssh_pub_key = os.path.join(ssh_dir, 'authorized_keys')
 
     for gn, gv in groups.iteritems():
-        keyname = gv.get('keyname')
-        pub_key_path = os.path.join(config.KEY_DIR, '%s.pub' % keyname)
-        if not keyname or not os.path.exists(pub_key_path):
-            ctx.fail('key name %s not exist' % keyname)
+        keyname, pub_key_path = get_path(ctx, gv, 'keyname', config.KEY_DIR, config.PUB_KEY_PATTERN)
         logger.info('Deploy key to %s' % gn)
         logger.info('Key path %s' % pub_key_path)
         with open(pub_key_path, 'r') as f:
@@ -40,7 +37,7 @@ def deploy_key(ctx, group):
                 commands = commands.format(ssh_pub_key=ssh_pub_key, ssh_dir=ssh_dir)
                 logger.debug(commands)
                 ret = ssh.execute(commands, sudo=True)
-                if key in ret["out"]:
+                if not check_key(ret['out'], key):
                     continue
                 commands = (
                     'echo "{key}" >> {ssh_pub_key};'
@@ -49,6 +46,10 @@ def deploy_key(ctx, group):
                 commands = commands.format(ssh_pub_key=ssh_pub_key, key=key)
                 logger.debug(commands)
                 ret = ssh.execute(commands, sudo=True)
+                if ret['retval']() == 0:
+                    logger.info('Deploy succeeded')
+                else:
+                    logger.warn('Deploy failed')
             except Exception:
                 logger.exception('Process in %s failed' % server)
             else:
@@ -56,4 +57,11 @@ def deploy_key(ctx, group):
             finally:
                 logger.info('Close connection to %s' % server)
                 ssh.close()
+
+def check_key(out, key):
+    for line in out:
+        if key not in line:
+            continue
+        return False
+    return True
 

@@ -2,6 +2,7 @@ virt:
   username: hunantv
   password: hunantv123
   keyname: rsa
+  redis: 2.8.11
   servers:
     - 10.1.201.49
     - 10.1.201.48
@@ -10,6 +11,7 @@ unknown:
   username: hunantv
   password: hunantv123
   keyname: rsa
+  redis: 2.8.11
   servers:
     - 10.1.201.49
 

@@ -1,7 +1,17 @@
 #!/usr/bin/python
 #coding:utf-8
 
+import os
 import config
+
+def get_path(ctx, d, key, dirname, pattern):
+    value = d.get(key)
+    if not value:
+        ctx.fail('Key %s not exists' % key)
+    path = os.path.join(dirname, pattern % value)
+    if not os.path.exists(path):
+        ctx.fail('Target file %s not exist' % path)
+    return value, path
 
 def get_group(ctx, group):
     if group == 'all':

@@ -46,9 +46,9 @@ class SSHClient(object):
             stdin.write(self.password + "\n")
             stdin.flush()
         return {
-            'out': stdout.readlines(), \
-            'err': stderr.readlines(), \
-            'retval': stdout.channel.recv_exit_status(), \
+            'out': stdout, \
+            'err': stderr, \
+            'retval': stdout.channel.recv_exit_status, \
         }
 
     def get_transport(self):
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     client = SSHClient(host='10.1.201.49', port=22, username='hunantv', password='hunantv123')
     try:
        ret = client.execute('dmesg', sudo=True)
-       print "  ".join(ret["out"]), "  E ".join(ret["err"]), ret["retval"]
+       print "  ".join(ret["out"].readlines()), "  E ".join(ret["err"].readlines()), ret["retval"]()
     finally:
       client.close()
 
