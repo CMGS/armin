@@ -60,6 +60,7 @@ class SSHClient(object):
         chan = self.client.get_transport().open_session()
         chan.exec_command(command)
         stdin = chan.makefile('wb', bufsize)
+        stderr = chan.makefile_stderr('r', bufsize)
         if feed_password:
             stdin.write(self.password + "\n")
             stdin.flush()
@@ -69,6 +70,11 @@ class SSHClient(object):
                 break
             if len(rl) > 0:
                 yield chan.recv(1024)
+        status = chan.recv_exit_status()
+        if status != 0:
+            logger.debug('Command execute failed')
+            for line in stderr.readlines():
+                logger.debug(line.strip())
 
     def get_transport(self):
         return self.client.get_transport()

@@ -4,6 +4,10 @@
 import os
 import config
 
+def render_lines(lines):
+    p = lines.rfind('\n')
+    return lines[p+1:], lines[:p+1].splitlines()
+
 def get_path(ctx, d, key, dirname, pattern):
     value = d.get(key)
     if not value:

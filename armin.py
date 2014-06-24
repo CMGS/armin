@@ -8,7 +8,7 @@ import logging
 from libs.colorlog import ColorizingStreamHandler
 
 from commands.key import deploy_key
-from commands.build import build_redis
+from commands.build import build_redis, build_nutcracker
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ commands = cli.command()
 
 commands(deploy_key)
 commands(build_redis)
+commands(build_nutcracker)
 
 if __name__ == '__main__':
     init()

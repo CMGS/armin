@@ -7,21 +7,20 @@ import config
 import logging
 from libs.ssh import SSHClient
 from libs.scp import SCPClient
-from utils import get_group, get_path
+from utils import get_group, get_path, render_lines
 
 logger = logging.getLogger(__name__)
 
-@click.argument('group')
-@click.pass_context
-def build_redis(ctx, group):
+def _build(name, ctx, group, configure=False):
     groups = get_group(ctx, group)
 
     for gn, gv in groups.iteritems():
-        logger.info('Build redis in %s' % gn)
-        version, redis_file_path = get_path(ctx, gv, 'redis', config.SRC_DIR, config.REDIS_PATTERN)
-        logger.info('Redis %s tar in %s' % (version, redis_file_path))
-        tar_name = config.REDIS_PATTERN % version
-        dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
+        pattern = getattr(config, '%s_PATTERN' % name.upper())
+        logger.info('Build %s in %s' % (name, gn))
+        version, file_path = get_path(ctx, gv, name, config.SRC_DIR, pattern)
+        logger.info('%s will extract and install' % file_path)
+        tar_name = pattern % version
+        dst_dirname = pattern.rstrip('.tar.gz') % version
         for server in gv['servers']:
             logger.info('Connect to %s' % server)
             try:
@@ -39,11 +38,11 @@ def build_redis(ctx, group):
                         password=gv.get('password'), \
                     )
                 logger.info('SCP redis tar to %s' % server)
-                scp_file(ssh, redis_file_path, config.REMOTE_SCP_DIR)
+                scp_file(ssh, file_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, tar_name)
                 extract_tar(ssh, remote_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname)
-                make_and_install(ssh, remote_path)
+                make_and_install(ssh, remote_path, configure)
             except Exception:
                 logger.exception('Process in %s failed' % server)
             else:
@@ -51,6 +50,16 @@ def build_redis(ctx, group):
             finally:
                 logger.info('Close connection to %s' % server)
                 ssh.close()
+
+@click.argument('group')
+@click.pass_context
+def build_redis(ctx, group):
+     _build('redis', ctx, group)
+
+@click.argument('group')
+@click.pass_context
+def build_nutcracker(ctx, group):
+     _build('nutcracker', ctx, group, configure=True)
 
 def scp_file(ssh, local_path, remote_path):
     scp = SCPClient(ssh.get_transport())
@@ -61,14 +70,21 @@ def extract_tar(ssh, remote_path, dst_path):
     command = command.format(
         remote_path=remote_path, dst_path=dst_path
     )
-    for line in ssh.stream_execute(command):
-        logger.debug(line.strip())
+    buf = ''
+    for lines in ssh.stream_execute(command):
+        buf, lines = render_lines(buf + lines)
+        map(logger.debug, lines)
     logger.info('Extract succeed')
 
-def make_and_install(ssh, remote_path):
-    command = 'cd {remote_path}; make install'
+def make_and_install(ssh, remote_path, configure=False):
+    if not configure:
+        command = 'cd {remote_path} && make install'
+    else:
+        command = 'cd {remote_path} && ./configure && make install'
     command = command.format(remote_path=remote_path)
-    for line in ssh.stream_execute(command):
-        logger.debug(line.strip())
+    logger.debug(command)
+    buf = ''
+    for lines in ssh.stream_execute(command):
+        buf, lines = render_lines(buf + lines)
+        map(logger.debug, lines)
     logger.info('Make install succeed')
-

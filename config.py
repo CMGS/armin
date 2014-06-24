@@ -18,6 +18,7 @@ SSH_TIMEOUT = 4
 SUDO_PREFIX = "sudo -S -p ''"
 SHELL = '/bin/bash -l -c'
 
+NUTCRACKER_PATTERN = 'nutcracker-%s.tar.gz'
 REDIS_PATTERN = 'redis-%s.tar.gz'
 PUB_KEY_PATTERN = '%s.pub'
 

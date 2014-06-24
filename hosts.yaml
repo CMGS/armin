@@ -3,6 +3,7 @@ virt:
   password: hunantv123
   keyname: rsa
   redis: 2.8.11
+  nutcracker: 0.3.0
   servers:
     - 10.1.201.49
     - 10.1.201.48
@@ -12,6 +13,7 @@ unknown:
   password: hunantv123
   keyname: rsa
   redis: 2.8.11
+  nutcracker: 0.3.0
   servers:
     - 10.1.201.49
 
