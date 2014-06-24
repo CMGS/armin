@@ -5,8 +5,7 @@ import os
 import click
 import config
 import logging
-from libs.ssh import SSHClient
-from utils import get_group, get_path
+from utils import get_group, get_path, get_ssh
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ def deploy_key(ctx, group):
         for server in gv['servers']:
             logger.info('Connect to %s' % server)
             try:
-                ssh = SSHClient(server, username=gv['username'], password=gv['password'])
+                ssh = get_ssh(server, username=gv['username'], password=gv['password'])
                 commands = (
                     'mkdir -p {ssh_dir};'
                     'chmod 700 {ssh_dir};'

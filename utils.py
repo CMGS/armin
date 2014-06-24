@@ -3,6 +3,9 @@
 
 import os
 import config
+import logging
+
+logger = logging.getLogger(__name__)
 
 def render_lines(lines):
     p = lines.rfind('\n')
@@ -41,3 +44,49 @@ def shell_escape(string):
     for char in ('"', '$', '`'):
         string = string.replace(char, '\%s' % char)
     return string
+
+def scp_file(ssh, local_path, remote_path):
+    from libs.scp import SCPClient
+    scp = SCPClient(ssh.get_transport())
+    scp.put(local_path, remote_path)
+
+def extract_tar(ssh, remote_path, dst_path):
+    command = 'tar xvf {remote_path} -C {dst_path}'
+    command = command.format(
+        remote_path=remote_path, dst_path=dst_path
+    )
+    buf = ''
+    for lines in ssh.stream_execute(command):
+        buf, lines = render_lines(buf + lines)
+        map(logger.debug, lines)
+    logger.info('Extract succeed')
+
+def make_and_install(ssh, remote_path, configure=False):
+    if not configure:
+        command = 'cd {remote_path} && make install'
+    else:
+        command = 'cd {remote_path} && ./configure && make install'
+    command = command.format(remote_path=remote_path)
+    logger.debug(command)
+    buf = ''
+    for lines in ssh.stream_execute(command):
+        buf, lines = render_lines(buf + lines)
+        map(logger.debug, lines)
+    logger.info('Make install succeed')
+
+def get_ssh(server, keyname=None, username='root', password=None):
+    from libs.ssh import SSHClient
+    if keyname:
+        ssh = SSHClient(
+            server, \
+            username=username, \
+            key_filename=os.path.join(config.KEY_DIR, keyname)
+        )
+    else:
+        ssh = SSHClient(
+            server, \
+            username=username, \
+            password=password, \
+        )
+    return ssh
+

@@ -1,0 +1,22 @@
+cluster0:
+  maxmemory: 16106127360
+  redis:
+    10.1.201.49:2000:
+      keyname: rsa
+      version: 2.8.11
+      servers:
+      - 10.1.201.49:2001:
+          keyname: rsa
+          version: 2.8.11
+#    10.1.201.49:2002:
+#      keyname: rsa
+#      version: 2.8.11
+#      servers:
+#      - 10.1.201.49:2003:
+#          keyname: rsa
+#          version: 2.8.11
+  sentinel:
+    10.1.201.49:3000:
+        10.1.201.49:2000
+        10.1.201.49:2002
+

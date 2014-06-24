@@ -5,9 +5,8 @@ import os
 import click
 import config
 import logging
-from libs.ssh import SSHClient
-from libs.scp import SCPClient
-from utils import get_group, get_path, render_lines
+from utils import get_group, get_path, get_ssh
+from utils import scp_file, extract_tar, make_and_install
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +24,7 @@ def _build(name, ctx, group, configure=False):
             logger.info('Connect to %s' % server)
             try:
                 keyname = gv.get('keyname')
-                if keyname:
-                    ssh = SSHClient(
-                        server, \
-                        username='root', \
-                        key_filename=os.path.join(config.KEY_DIR, keyname)
-                    )
-                else:
-                    ssh = SSHClient(
-                        server, \
-                        username=gv['username'], \
-                        password=gv.get('password'), \
-                    )
+                ssh = get_ssh(server, keyname, 'root')
                 logger.info('SCP redis tar to %s' % server)
                 scp_file(ssh, file_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, tar_name)
@@ -61,30 +49,3 @@ def build_redis(ctx, group):
 def build_nutcracker(ctx, group):
      _build('nutcracker', ctx, group, configure=True)
 
-def scp_file(ssh, local_path, remote_path):
-    scp = SCPClient(ssh.get_transport())
-    scp.put(local_path, remote_path)
-
-def extract_tar(ssh, remote_path, dst_path):
-    command = 'tar xvf {remote_path} -C {dst_path}'
-    command = command.format(
-        remote_path=remote_path, dst_path=dst_path
-    )
-    buf = ''
-    for lines in ssh.stream_execute(command):
-        buf, lines = render_lines(buf + lines)
-        map(logger.debug, lines)
-    logger.info('Extract succeed')
-
-def make_and_install(ssh, remote_path, configure=False):
-    if not configure:
-        command = 'cd {remote_path} && make install'
-    else:
-        command = 'cd {remote_path} && ./configure && make install'
-    command = command.format(remote_path=remote_path)
-    logger.debug(command)
-    buf = ''
-    for lines in ssh.stream_execute(command):
-        buf, lines = render_lines(buf + lines)
-        map(logger.debug, lines)
-    logger.info('Make install succeed')
