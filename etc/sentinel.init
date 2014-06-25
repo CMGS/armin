@@ -1,0 +1,44 @@
+#/bin/sh
+
+EXEC=/usr/local/bin/redis-server
+PIDFILE={{ pidfile }}
+CONF={{ etc_file }}
+
+case "$1" in
+    start)
+        if [ -f $PIDFILE ]
+        then
+            echo "$PIDFILE exists, process is already running or crashed"
+        else
+            ulimit -c unlimited
+            echo "Starting Redis sentinel..."
+            $EXEC $CONF --sentinel
+        fi
+        ;;
+    stop)
+        if [ ! -f $PIDFILE ]
+        then
+            echo "$PIDFILE does not exist, process is not running"
+        else
+            PID=$(cat $PIDFILE)
+            echo "Stopping ..."
+            kill $PID
+            echo "Redis sentinel stopped"
+        fi
+        ;;
+    status)
+        if [ ! -f $PIDFILE ]
+        then
+            echo 'Redis sentinel is not running'
+        else
+            echo "Redis sentinel is running ($(<$PIDFILE))"
+        fi
+        ;;
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    *)
+        echo "Please use start, stop, restart or status as first argument"
+        ;;
+esac

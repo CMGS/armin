@@ -6,11 +6,12 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 DEBUG = True
+ROOT = 'root'
 
-ROOT = os.path.realpath(os.path.dirname(__file__))
-KEY_DIR = os.path.join(ROOT, 'key')
-SRC_DIR = os.path.join(ROOT, 'src')
-ETC_DIR = os.path.join(ROOT, 'etc')
+ROOT_DIR = os.path.realpath(os.path.dirname(__file__))
+KEY_DIR = os.path.join(ROOT_DIR, 'key')
+SRC_DIR = os.path.join(ROOT_DIR, 'src')
+ETC_DIR = os.path.join(ROOT_DIR, 'etc')
 
 HOSTS = yaml.load(open('hosts.yaml'))
 REDIS = yaml.load(open('redis.yaml'))
@@ -28,8 +29,19 @@ REDIS_PATTERN = 'redis-%s.tar.gz'
 PUB_KEY_PATTERN = '%s.pub'
 
 REDIS_CONF = 'redis.conf'
-SENTINEL_CONF = 'sentinel.conf'
-
 DEFAULT_REDIS_MAXMEMORY = 16106127360
 DEFAULT_REDIS_HOME = '/tmp'
+
+SENTINEL_CONF = 'sentinel.conf'
+SENTINEL_INIT = 'sentinel.init'
+SENTINEL_INITFILE_PATTERN = 'sentinel_{port}'
+SENTINEL_ETCFILE_PATTERN = 'sentinel_{port}.conf'
+SENTINEL_LOGFILE_PATTERN = 'sentinel_{port}.log'
+SENTINEL_PIDFILE_PATTERN = 'sentinel_{port}.pid'
+
+DEFAULT_SENTINEL_HOME = '/tmp'
+DEFAULT_SENTINEL_QUORUM = 2
+DEFAULT_SENTINEL_DOWN_AFTER_MILLISECONDS = 60000
+DEFAULT_SENTINEL_PARALLEL_SYNCS = 1
+DEFAULT_SENTINEL_FAILOVER_TIMEOUT = 180000
 

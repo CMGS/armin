@@ -24,7 +24,7 @@ def _build(name, ctx, group, configure=False):
             logger.info('Connect to %s' % server)
             try:
                 keyname = gv.get('keyname')
-                ssh = get_ssh(server, keyname, 'root')
+                ssh = get_ssh(server, keyname, config.ROOT)
                 logger.info('SCP redis tar to %s' % server)
                 scp_file(ssh, file_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, tar_name)

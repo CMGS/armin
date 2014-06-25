@@ -9,6 +9,7 @@ from libs.colorlog import ColorizingStreamHandler
 
 from commands.key import deploy_key
 from commands.redis import start_redis
+from commands.sentinel import start_sentinel
 from commands.build import build_redis, build_nutcracker
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ commands = cli.command()
 
 commands(deploy_key)
 commands(start_redis)
+commands(start_sentinel)
 commands(build_redis)
 commands(build_nutcracker)
 

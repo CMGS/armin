@@ -19,8 +19,12 @@ cluster0:
   sentinel:
     10.1.201.49:3000:
       keyname: rsa
-      home: /var/lib/redis
-      master:
-        - 10.1.201.49:2000
-        - 10.1.201.49:2002
+      home: /var/lib/redis/sentinel
+      quorum: 2
+      down-after-milliseconds: 60000
+      parallel-syncs: 1
+      failover-timeout: 180000
+      masters:
+        10.1.201.49:2000:
+        #10.1.201.49:2002:
 

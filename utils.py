@@ -4,8 +4,14 @@
 import os
 import config
 import logging
+from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
+
+class Obj(object): pass
+
+def get_address(server):
+    return server.split(':')
 
 def render_lines(lines):
     p = lines.rfind('\n')
@@ -74,7 +80,7 @@ def make_and_install(ssh, remote_path, configure=False):
         map(logger.debug, lines)
     logger.info('Make install succeed')
 
-def get_ssh(server, keyname=None, username='root', password=None):
+def get_ssh(server, keyname=None, username=config.ROOT, password=None):
     from libs.ssh import SSHClient
     if keyname:
         ssh = SSHClient(
@@ -89,4 +95,10 @@ def get_ssh(server, keyname=None, username='root', password=None):
             password=password, \
         )
     return ssh
+
+def scp_temple_file(ssh, tpl_stream, remote_path):
+    with NamedTemporaryFile('wb') as fp:
+        tpl_stream.dump(fp)
+        fp.flush()
+        scp_file(ssh, fp.name, remote_path)
 
