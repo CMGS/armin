@@ -1,13 +1,14 @@
 cluster0:
-  maxmemory: 16106127360
   redis:
     10.1.201.49:2000:
+      maxmemory: 16106127360
       keyname: rsa
       version: 2.8.11
-      servers:
-      - 10.1.201.49:2001:
-          keyname: rsa
-          version: 2.8.11
+      home: /var/lib/redis
+      slaves:
+        10.1.201.49:2001:
+          maxmemory: 15728640
+
 #    10.1.201.49:2002:
 #      keyname: rsa
 #      version: 2.8.11
@@ -17,6 +18,9 @@ cluster0:
 #          version: 2.8.11
   sentinel:
     10.1.201.49:3000:
-        10.1.201.49:2000
-        10.1.201.49:2002
+      keyname: rsa
+      home: /var/lib/redis
+      master:
+        - 10.1.201.49:2000
+        - 10.1.201.49:2002
 

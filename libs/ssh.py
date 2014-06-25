@@ -47,11 +47,14 @@ class SSHClient(object):
         command = ' '.join(c)
         return feed_password, command
 
-    def execute(self, command, sudo=False, shell=True):
+    def execute(self, command, sudo=False, shell=True, data=None):
         feed_password, command = self.parse_command(command, sudo, shell)
         stdin, stdout, stderr = self.client.exec_command(command)
         if feed_password:
             stdin.write(self.password + "\n")
+            stdin.flush()
+        if data:
+            stdin.write(data)
             stdin.flush()
         return stdout, stderr, stdout.channel.recv_exit_status()
 

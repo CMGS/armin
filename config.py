@@ -30,3 +30,6 @@ PUB_KEY_PATTERN = '%s.pub'
 REDIS_CONF = 'redis.conf'
 SENTINEL_CONF = 'sentinel.conf'
 
+DEFAULT_REDIS_MAXMEMORY = 16106127360
+DEFAULT_REDIS_HOME = '/tmp'
+

@@ -5,10 +5,8 @@ import os
 import click
 import config
 import logging
-from libs.ssh import SSHClient
-from libs.scp import SCPClient
 from tempfile import NamedTemporaryFile
-from utils import get_path, scp_file, get_ssh
+from utils import scp_file, get_ssh
 
 logger = logging.getLogger(__name__)
 
@@ -19,45 +17,84 @@ def start_redis(ctx, cluster):
     if not cluster:
         ctx.fail('%s not define' % cluster)
 
-    maxmemory = cluster['maxmemory']
     redis = cluster['redis']
     sentinel = cluster['sentinel']
 
-    for master, values in redis.iteritems():
-        logger.info('Connect to master %s' % master)
-        do_redis_install(master, values, maxmemory)
-
-def do_redis_install(server, values, maxmemory):
-    server, port = get_bind_port(server)
-    keyname = values.get('keyname')
-    version = values.get('version')
-
-    dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
-    remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname, config.REDIS_CONF)
-
-    try:
-        ssh = get_ssh(server, keyname, 'root')
-        send_conf(ssh, config.REDIS_CONF, '', maxmemory, server, remote_path)
-
-    except Exception:
-        logger.exception('Process in %s failed' % server)
-    else:
-        logger.info('Process in %s was done' % server)
-    finally:
-        logger.info('Close connection to %s' % server)
-        ssh.close()
+    do_deploy_redis(redis, config.DEFAULT_REDIS_HOME, config.DEFAULT_REDIS_MAXMEMORY)
 
 def get_bind_port(ip):
     return ip.split(':')
 
-def send_conf(ssh, conf, slaveof, maxmemory, server, path):
-    tpl = config.GET_CONF.get_template(conf)
+def do_deploy_redis(redis, home, maxmemory, keyname=None, version=None, slaveof=None):
+    for server, values in redis.iteritems():
+        values = values or {}
+        keyname = values.get('keyname', keyname)
+        version = values.get('version', version)
+        if not keyname or not version:
+            logger.error('There is no keyname and version defined for %s' % server)
+            continue
+        logger.info('Connect to master %s' % server)
+        home = values.get('home', home)
+        maxmemory = values.get('maxmemory', maxmemory)
+        deploy_redis(server, keyname, version, maxmemory, home, slaveof)
+        slaves = values.get('slaves', None)
+        if slaves:
+            do_deploy_redis(slaves, home, maxmemory, keyname, version, server)
+
+def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
+    server, port = get_bind_port(server)
+
+    dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
+    remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname)
+
+    try:
+        ssh = get_ssh(server, keyname, 'root')
+        send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof)
+        install_redis(ssh, remote_path, home, port)
+    except Exception:
+        logger.exception('Install in %s failed' % server)
+    else:
+        logger.info('Install in %s was done' % server)
+    finally:
+        logger.info('Close connection to %s' % server)
+        ssh.close()
+
+def send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
+    slaveof = 'slaveof {0} {1}'.format(*get_bind_port(slaveof)) if slaveof else ''
+    path = os.path.join(remote_path, config.REDIS_CONF)
+    tpl = config.GET_CONF.get_template(config.REDIS_CONF)
     tpl_stream = tpl.stream(
         slaveof=slaveof, \
         maxmemory=maxmemory, \
         server=server, \
+        port=port, \
     )
     with NamedTemporaryFile('wb') as fp:
         tpl_stream.dump(fp)
         scp_file(ssh, fp.name, path)
+
+def install_redis(ssh, remote_path, home, port):
+    path = os.path.join(remote_path, 'utils')
+    conf_dir = os.path.join(home, 'etc')
+    log_dir = os.path.join(home, 'log')
+    data_dir = os.path.join(home, 'data')
+    commands = 'mkdir -p %s %s %s %s' % (home, conf_dir, log_dir, data_dir)
+    logger.debug(commands)
+    _, _, retval = ssh.execute(commands, sudo=True)
+    if retval != 0:
+        logger.error('Create redis dirs failed')
+        return
+    conf_file = os.path.join(conf_dir, '%s.conf' % port)
+    log_file = os.path.join(log_dir, '%s.log' % port)
+    data = '%s\n%s\n%s\n%s\n\n\n\n' % (port, conf_file, log_file, data_dir)
+    logger.debug(data.strip('\n'))
+    commands = 'cd %s && sh install_server.sh' % path
+    logger.debug(commands)
+    out, err, retval = ssh.execute(commands, sudo=True, shell=False, data=data)
+    if retval != 0:
+        logger.error('Config redis failed')
+        map(lambda m: logger.debug(m.strip('\n')), err)
+        return
+    map(lambda m: logger.debug(m.strip('\n')), out)
+    logger.info('Config redis succeed')
 
