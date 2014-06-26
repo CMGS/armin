@@ -1,8 +1,10 @@
 #/bin/sh
 
 EXEC=/usr/local/bin/redis-server
+CLIEXEC=/usr/local/bin/redis-cli
 PIDFILE={{ pidfile }}
 CONF={{ etc_file }}
+REDISPORT="{{ port }}"
 
 case "$1" in
     start)
@@ -22,7 +24,12 @@ case "$1" in
         else
             PID=$(cat $PIDFILE)
             echo "Stopping ..."
-            kill $PID
+            $CLIEXEC -p $REDISPORT shutdown
+            while [ -x /proc/${PID} ]
+            do
+                echo "Waiting for Redis sentinel to shutdown ..."
+                sleep 1
+            done
             echo "Redis sentinel stopped"
         fi
         ;;

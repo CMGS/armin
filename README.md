@@ -1,7 +1,7 @@
 Armin
 ========
 
-Redis Cluster Deploy System
+Redis Cluster Manager
 
 Powereby Paramiko and Click
 

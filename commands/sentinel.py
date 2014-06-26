@@ -61,9 +61,8 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
     logfile = os.path.join(log_dir, config.SENTINEL_LOGFILE_PATTERN.format(port=port))
     pidfile = os.path.join(run_dir, config.SENTINEL_PIDFILE_PATTERN.format(port=port))
 
+    ssh = get_ssh(server, keyname, config.ROOT)
     try:
-        ssh = get_ssh(server, keyname, config.ROOT)
-
         commands = 'mkdir -p %s %s %s %s' % (home, etc_dir, log_dir, run_dir)
         logger.debug(commands)
         _, err, retval = ssh.execute(commands, sudo=True)
@@ -86,6 +85,7 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
         tpl_stream = tpl.stream(
             pidfile=pidfile, \
             etc_file=etc_file, \
+            port=port, \
         )
         scp_temple_file(ssh, tpl_stream, init_file)
         logger.debug(init_file)
@@ -99,6 +99,7 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
             map(lambda m: logger.debug(m.strip('\n')), err)
             return
         map(lambda m: logger.debug(m.strip('\n')), out)
+        check_init_tools(ssh, port)
     except Exception:
         logger.exception('Install in %s failed' % server)
     else:
@@ -106,6 +107,31 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
     finally:
         logger.info('Close connection to %s' % server)
         ssh.close()
+
+def check_init_tools(ssh, port):
+    commands = 'command -v chkconfig'
+    _, _, retval = ssh.execute(commands, sudo=True)
+    if retval == 0:
+        commands = 'chkconfig --add sentinel_{port} && chkconfig --level 345 sentinel_{port}'.format(port=port)
+        out, err, retval = ssh.execute(commands, sudo=True)
+        if retval != 0:
+            map(lambda m: logger.debug(m.strip('\n')), err)
+            return
+        map(lambda m: logger.debug(m.strip('\n')), out)
+        logger.info('Successfully added sentinel service to chkconfig and runlevels 345')
+    else:
+        commands = 'command -v update-rc.d'
+        _, _, retval = ssh.execute(commands, sudo=True)
+        if retval == 0:
+            commands = 'update-rc.d sentinel_{port} defaults'.format(port=port)
+            out, err, retval = ssh.execute(commands, sudo=True)
+            if retval != 0:
+                map(lambda m: logger.debug(m.strip('\n')), err)
+                return
+            map(lambda m: logger.debug(m.strip('\n')), out)
+            logger.info('Successfully added sentinel service to update-rc')
+        else:
+            logger.error('No supported init tools found')
 
 def generate_masters_config(
     masters, quorum, \
