@@ -5,12 +5,12 @@ cluster0:
         mbuf_size: 16384
         home: /var/lib/nutcracker
         keyname: rsa
-        stats-port: 22222
+        stats_port: 22221
       10.1.201.48:4000:
         mbuf_size: 16384
         home: /var/lib/nutcracker
         keyname: rsa
-        stats-port: 22221
+        stats_port: 22221
     hash: fnv1a_64
     distribution: ketama
     preconnect: true
@@ -24,7 +24,7 @@ cluster0:
     server_failure_limit: 2
     servers:
       - 10.1.201.49:2000:1
-      - 10.1.201.48:2001:1
+      - 10.1.201.48:2000:1
   redis:
     10.1.201.49:2000:
       maxmemory: 16106127360
@@ -32,15 +32,15 @@ cluster0:
       version: 2.8.11
       home: /var/lib/redis
       slaves:
-        10.1.201.49:2001:
+        10.1.201.48:2001:
           maxmemory: 15728640
-    10.1.201.48:2001:
+    10.1.201.48:2000:
       maxmemory: 16106127360
       keyname: rsa
       version: 2.8.11
       home: /var/lib/redis
       slaves:
-        10.1.201.48:2000:
+        10.1.201.49:2001:
           maxmemory: 15728640
   sentinel:
     10.1.201.49:3000:
@@ -52,7 +52,7 @@ cluster0:
       failover-timeout: 180000
       masters:
         10.1.201.49:2000:
-        10.1.201.48:2001:
+        10.1.201.48:2000:
     10.1.201.48:3000:
       keyname: rsa
       home: /var/lib/redis/sentinel
@@ -62,5 +62,5 @@ cluster0:
       failover-timeout: 180000
       masters:
         10.1.201.49:2000:
-        10.1.201.48:2001:
+        10.1.201.48:2000:
 
