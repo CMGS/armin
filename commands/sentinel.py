@@ -74,25 +74,18 @@ def deploy_sentinel(server, port, keyname, home, defines):
             output_logs(logger.error, err)
             return
 
-        tpl = config.GET_CONF.get_template(config.SENTINEL_CONF)
-        tpl_stream = tpl.stream(
-            port=port, \
-            home=home, \
-            pidfile=pidfile, \
-            logfile=logfile, \
-            defines=defines, \
+        scp_template_file(
+            ssh, config.SENTINEL_CONF, etc_file, \
+            port=port, home=home, pidfile=pidfile, \
+            logfile=logfile, defines=defines, \
         )
-        scp_template_file(ssh, tpl_stream, etc_file)
-        logger.debug(etc_file)
         logger.info('Deploy config file in %s was done' % server)
-        tpl = config.GET_CONF.get_template(config.SENTINEL_INIT)
-        tpl_stream = tpl.stream(
-            pidfile=pidfile, \
-            etc_file=etc_file, \
+
+        scp_template_file(
+            ssh, config.SENTINEL_INIT, init_file, \
+            pidfile=pidfile, etc_file=etc_file, \
             port=port, \
         )
-        scp_template_file(ssh, tpl_stream, init_file)
-        logger.debug(init_file)
         logger.info('Deploy init file in %s was done' % server)
 
         commands = 'chmod +x {init_file} && {init_file} start'.format(init_file=init_file)

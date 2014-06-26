@@ -1,17 +1,21 @@
 #!/usr/bin/python
 #coding:utf-8
 
+import config
 import logging
 from tempfile import NamedTemporaryFile
 from utils.helper import output_logs, get_lines, scp_file
 
 logger = logging.getLogger(__name__)
 
-def scp_template_file(ssh, tpl_stream, remote_path):
+def scp_template_file(ssh, tpl_name, remote_path, **kwargs):
+    tpl = config.GET_CONF.get_template(tpl_name)
+    tpl_stream = tpl.stream(**kwargs)
     with NamedTemporaryFile('wb') as fp:
         tpl_stream.dump(fp)
         fp.flush()
         scp_file(ssh, fp.name, remote_path)
+    logger.debug(remote_path)
 
 def extract_tar(ssh, remote_path, dst_path):
     command = 'tar xvf {remote_path} -C {dst_path}'

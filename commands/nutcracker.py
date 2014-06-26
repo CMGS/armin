@@ -79,16 +79,12 @@ def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_siz
         logger.debug(etc_file)
         logger.info('Deploy config file in %s was done' % server)
 
-        tpl = config.GET_CONF.get_template(config.NUTCRACKER_INIT)
-        tpl_stream = tpl.stream(
-            pidfile=pidfile, \
-            etc_file=etc_file, \
-            logfile=logfile, \
-            stats_port=stats_port, \
+        scp_template_file(
+            ssh, config.NUTCRACKER_INIT, init_file, \
+            pidfile=pidfile, etc_file=etc_file, \
+            logfile=logfile, stats_port=stats_port, \
             mbuf_size=mbuf_size, \
         )
-        scp_template_file(ssh, tpl_stream, init_file)
-        logger.debug(init_file)
         logger.info('Deploy init file in %s was done' % server)
 
         commands = 'chmod +x {init_file} && {init_file} start'.format(init_file=init_file)
