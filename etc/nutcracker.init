@@ -1,10 +1,11 @@
 #/bin/sh
 
-EXEC=/usr/local/bin/redis-server
-CLIEXEC=/usr/local/bin/redis-cli
+EXEC=/usr/local/sbin/nutcracker
 PIDFILE={{ pidfile }}
 CONF={{ etc_file }}
-REDISPORT="{{ port }}"
+LOGFILE={{ logfile }}
+STATS_PORT={{ stats_port }}
+MBUF_SIZE={{ mbuf_size }}
 
 case "$1" in
     start)
@@ -13,8 +14,8 @@ case "$1" in
             echo "$PIDFILE exists, process is already running or crashed"
         else
             ulimit -c unlimited
-            echo "Starting Redis sentinel..."
-            $EXEC $CONF --sentinel
+            echo "Starting twemproxy process..."
+            $EXEC -d -c $CONF -o $LOGFILE -p $PIDFILE -s $STATS_PORT -m $MBUF_SIZE
         fi
         ;;
     stop)
@@ -24,21 +25,20 @@ case "$1" in
         else
             PID=$(cat $PIDFILE)
             echo "Stopping ..."
-            $CLIEXEC -p $REDISPORT shutdown
-            while [ -x /proc/${PID} ]
-            do
-                echo "Waiting for Redis sentinel to shutdown ..."
-                sleep 1
-            done
-            echo "Redis sentinel stopped"
+            kill $PID
+            rm -rf $PIDFILE
+            RETVAL=$?
+            if [ $RETVAL -eq 0 ] ; then
+                echo "Twemproxy stopped"
+            fi
         fi
         ;;
     status)
         if [ ! -f $PIDFILE ]
         then
-            echo 'Redis sentinel is not running'
+            echo 'Twemproxy is not running'
         else
-            echo "Redis sentinel is running ($(<$PIDFILE))"
+            echo "Twemproxy is running ($(<$PIDFILE))"
         fi
         ;;
     restart)
@@ -49,3 +49,4 @@ case "$1" in
         echo "Please use start, stop, restart or status as first argument"
         ;;
 esac
+

@@ -1,4 +1,30 @@
 cluster0:
+  nutcracker:
+    proxy:
+      10.1.201.49:4000:
+        mbuf_size: 16384
+        home: /var/lib/nutcracker
+        keyname: rsa
+        stats-port: 22222
+      10.1.201.48:4000:
+        mbuf_size: 16384
+        home: /var/lib/nutcracker
+        keyname: rsa
+        stats-port: 22221
+    hash: fnv1a_64
+    distribution: ketama
+    preconnect: true
+    auto_eject_hosts: false
+    redis: true
+    hash_tag: "{}"
+    backlog: 10240
+    timeout: 400
+    server_connections: 1
+    server_retry_timeout: 2000
+    server_failure_limit: 2
+    servers:
+      - 10.1.201.49:2000:1
+      - 10.1.201.48:2001:1
   redis:
     10.1.201.49:2000:
       maxmemory: 16106127360
@@ -8,14 +34,14 @@ cluster0:
       slaves:
         10.1.201.49:2001:
           maxmemory: 15728640
-
-#    10.1.201.49:2002:
-#      keyname: rsa
-#      version: 2.8.11
-#      servers:
-#      - 10.1.201.49:2003:
-#          keyname: rsa
-#          version: 2.8.11
+    10.1.201.48:2001:
+      maxmemory: 16106127360
+      keyname: rsa
+      version: 2.8.11
+      home: /var/lib/redis
+      slaves:
+        10.1.201.48:2000:
+          maxmemory: 15728640
   sentinel:
     10.1.201.49:3000:
       keyname: rsa
@@ -26,20 +52,7 @@ cluster0:
       failover-timeout: 180000
       masters:
         10.1.201.49:2000:
-        #10.1.201.49:2002:
-
-cluster1:
-  redis:
-    10.1.201.48:2000:
-      maxmemory: 16106127360
-      keyname: rsa
-      version: 2.8.11
-      home: /var/lib/redis
-      slaves:
         10.1.201.48:2001:
-          maxmemory: 15728640
-
-  sentinel:
     10.1.201.48:3000:
       keyname: rsa
       home: /var/lib/redis/sentinel
@@ -48,5 +61,6 @@ cluster1:
       parallel-syncs: 1
       failover-timeout: 180000
       masters:
-        10.1.201.48:2000:
+        10.1.201.49:2000:
+        10.1.201.48:2001:
 
