@@ -28,3 +28,25 @@ cluster0:
         10.1.201.49:2000:
         #10.1.201.49:2002:
 
+cluster1:
+  redis:
+    10.1.201.48:2000:
+      maxmemory: 16106127360
+      keyname: rsa
+      version: 2.8.11
+      home: /var/lib/redis
+      slaves:
+        10.1.201.48:2001:
+          maxmemory: 15728640
+
+  sentinel:
+    10.1.201.48:3000:
+      keyname: rsa
+      home: /var/lib/redis/sentinel
+      quorum: 2
+      down-after-milliseconds: 60000
+      parallel-syncs: 1
+      failover-timeout: 180000
+      masters:
+        10.1.201.48:2000:
+

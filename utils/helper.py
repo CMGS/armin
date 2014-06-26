@@ -4,18 +4,21 @@
 import os
 import config
 import logging
-from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
 
 class Obj(object): pass
 
-def get_address(server):
-    return server.split(':')
+def output_logs(log, lines):
+    for line in lines:
+        log(line.strip('\n'))
 
-def render_lines(lines):
+def get_lines(lines):
     p = lines.rfind('\n')
     return lines[p+1:], lines[:p+1].splitlines()
+
+def get_address(server):
+    return server.split(':')
 
 def get_path(ctx, d, key, dirname, pattern):
     value = d.get(key)
@@ -51,35 +54,6 @@ def shell_escape(string):
         string = string.replace(char, '\%s' % char)
     return string
 
-def scp_file(ssh, local_path, remote_path):
-    from libs.scp import SCPClient
-    scp = SCPClient(ssh.get_transport())
-    scp.put(local_path, remote_path)
-
-def extract_tar(ssh, remote_path, dst_path):
-    command = 'tar xvf {remote_path} -C {dst_path}'
-    command = command.format(
-        remote_path=remote_path, dst_path=dst_path
-    )
-    buf = ''
-    for lines in ssh.stream_execute(command):
-        buf, lines = render_lines(buf + lines)
-        map(logger.debug, lines)
-    logger.info('Extract succeed')
-
-def make_and_install(ssh, remote_path, configure=False):
-    if not configure:
-        command = 'cd {remote_path} && make install'
-    else:
-        command = 'cd {remote_path} && ./configure && make install'
-    command = command.format(remote_path=remote_path)
-    logger.debug(command)
-    buf = ''
-    for lines in ssh.stream_execute(command):
-        buf, lines = render_lines(buf + lines)
-        map(logger.debug, lines)
-    logger.info('Make install succeed')
-
 def get_ssh(server, keyname=None, username=config.ROOT, password=None):
     from libs.ssh import SSHClient
     if keyname:
@@ -96,9 +70,8 @@ def get_ssh(server, keyname=None, username=config.ROOT, password=None):
         )
     return ssh
 
-def scp_temple_file(ssh, tpl_stream, remote_path):
-    with NamedTemporaryFile('wb') as fp:
-        tpl_stream.dump(fp)
-        fp.flush()
-        scp_file(ssh, fp.name, remote_path)
+def scp_file(ssh, local_path, remote_path):
+    from libs.scp import SCPClient
+    scp = SCPClient(ssh.get_transport())
+    scp.put(local_path, remote_path)
 

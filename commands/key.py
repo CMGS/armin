@@ -5,7 +5,7 @@ import os
 import click
 import config
 import logging
-from utils import get_group, get_path, get_ssh
+from utils.helper import get_group, get_path, get_ssh
 
 logger = logging.getLogger(__name__)
 

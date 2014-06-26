@@ -5,7 +5,9 @@ import os
 import click
 import config
 import logging
-from utils import scp_temple_file, get_ssh, get_address, Obj
+
+from utils.helper import get_ssh, get_address, Obj, output_logs
+from utils.tools import activate_service, scp_template_file
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +50,15 @@ def do_deploy_sentinel(
         down_after_milliseconds, parallel_syncs, \
         failover_timeout, \
     )
-    deploy_redis_sentinel(server, port, keyname, home, defines)
+    deploy_sentinel(server, port, keyname, home, defines)
 
-def deploy_redis_sentinel(server, port, keyname, home, defines):
+def deploy_sentinel(server, port, keyname, home, defines):
     etc_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')
     run_dir = os.path.join(home, 'run')
 
-    init_file = os.path.join('/etc/init.d', config.SENTINEL_INITFILE_PATTERN.format(port=port))
+    init = config.SENTINEL_INITFILE_PATTERN.format(port=port)
+    init_file = os.path.join('/etc/init.d', init)
     etc_file = os.path.join(etc_dir, config.SENTINEL_ETCFILE_PATTERN.format(port=port))
 
     logfile = os.path.join(log_dir, config.SENTINEL_LOGFILE_PATTERN.format(port=port))
@@ -68,7 +71,8 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
         _, err, retval = ssh.execute(commands, sudo=True)
         if retval != 0:
             logger.error('Create redis sentinel dirs failed')
-            map(lambda m: logger.debug(m.strip('\n')), err)
+            output_logs(logger.error, err)
+            return
 
         tpl = config.GET_CONF.get_template(config.SENTINEL_CONF)
         tpl_stream = tpl.stream(
@@ -78,7 +82,7 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
             logfile=logfile, \
             defines=defines, \
         )
-        scp_temple_file(ssh, tpl_stream, etc_file)
+        scp_template_file(ssh, tpl_stream, etc_file)
         logger.debug(etc_file)
         logger.info('Deploy config file in %s was done' % server)
         tpl = config.GET_CONF.get_template(config.SENTINEL_INIT)
@@ -87,7 +91,7 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
             etc_file=etc_file, \
             port=port, \
         )
-        scp_temple_file(ssh, tpl_stream, init_file)
+        scp_template_file(ssh, tpl_stream, init_file)
         logger.debug(init_file)
         logger.info('Deploy init file in %s was done' % server)
 
@@ -96,10 +100,10 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
         out, err, retval = ssh.execute(commands, sudo=True)
         if retval != 0:
             logger.error('Start redis sentinel failed')
-            map(lambda m: logger.debug(m.strip('\n')), err)
+            output_logs(logger.error, err)
             return
-        map(lambda m: logger.debug(m.strip('\n')), out)
-        check_init_tools(ssh, port)
+        output_logs(logger.debug, out)
+        activate_service(ssh, init)
     except Exception:
         logger.exception('Install in %s failed' % server)
     else:
@@ -107,31 +111,6 @@ def deploy_redis_sentinel(server, port, keyname, home, defines):
     finally:
         logger.info('Close connection to %s' % server)
         ssh.close()
-
-def check_init_tools(ssh, port):
-    commands = 'command -v chkconfig'
-    _, _, retval = ssh.execute(commands, sudo=True)
-    if retval == 0:
-        commands = 'chkconfig --add sentinel_{port} && chkconfig --level 345 sentinel_{port}'.format(port=port)
-        out, err, retval = ssh.execute(commands, sudo=True)
-        if retval != 0:
-            map(lambda m: logger.debug(m.strip('\n')), err)
-            return
-        map(lambda m: logger.debug(m.strip('\n')), out)
-        logger.info('Successfully added sentinel service to chkconfig and runlevels 345')
-    else:
-        commands = 'command -v update-rc.d'
-        _, _, retval = ssh.execute(commands, sudo=True)
-        if retval == 0:
-            commands = 'update-rc.d sentinel_{port} defaults'.format(port=port)
-            out, err, retval = ssh.execute(commands, sudo=True)
-            if retval != 0:
-                map(lambda m: logger.debug(m.strip('\n')), err)
-                return
-            map(lambda m: logger.debug(m.strip('\n')), out)
-            logger.info('Successfully added sentinel service to update-rc')
-        else:
-            logger.error('No supported init tools found')
 
 def generate_masters_config(
     masters, quorum, \

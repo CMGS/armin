@@ -5,7 +5,8 @@ import os
 import click
 import config
 import logging
-from utils import scp_temple_file, get_ssh, get_address
+from utils.tools import scp_template_file
+from utils.helper import get_ssh, get_address, output_logs
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
         server=server, \
         port=port, \
     )
-    scp_temple_file(ssh, tpl_stream, path)
+    scp_template_file(ssh, tpl_stream, path)
 
 def install_redis(ssh, remote_path, home, port):
     path = os.path.join(remote_path, 'utils')
@@ -76,7 +77,7 @@ def install_redis(ssh, remote_path, home, port):
     _, err, retval = ssh.execute(commands, sudo=True)
     if retval != 0:
         logger.error('Create redis dirs failed')
-        map(lambda m: logger.debug(m.strip('\n')), err)
+        output_logs(logger.error, err)
         return
     conf_file = os.path.join(conf_dir, '%s.conf' % port)
     log_file = os.path.join(log_dir, '%s.log' % port)
@@ -87,8 +88,8 @@ def install_redis(ssh, remote_path, home, port):
     out, err, retval = ssh.execute(commands, sudo=True, shell=False, data=data)
     if retval != 0:
         logger.error('Config redis failed')
-        map(lambda m: logger.debug(m.strip('\n')), err)
+        output_logs(logger.error, err)
         return
-    map(lambda m: logger.debug(m.strip('\n')), out)
+    output_logs(logger.debug, out)
     logger.info('Config redis succeed')
 

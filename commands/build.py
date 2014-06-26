@@ -5,8 +5,8 @@ import os
 import click
 import config
 import logging
-from utils import get_group, get_path, get_ssh
-from utils import scp_file, extract_tar, make_and_install
+from utils.helper import get_group, get_path, get_ssh
+from utils.tools import scp_file, extract_tar, make_and_install
 
 logger = logging.getLogger(__name__)
 

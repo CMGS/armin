@@ -5,7 +5,7 @@ import config
 import select
 import logging
 import paramiko
-from utils import shell_escape
+from utils.helper import shell_escape, output_logs
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,8 @@ class SSHClient(object):
                 yield chan.recv(1024)
         status = chan.recv_exit_status()
         if status != 0:
-            logger.debug('Command execute failed')
-            for line in stderr.readlines():
-                logger.debug(line.strip())
+            logger.error('Command execute failed')
+            output_logs(logger.error, stderr.readlines())
 
     def get_transport(self):
         return self.client.get_transport()
