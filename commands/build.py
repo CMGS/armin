@@ -22,9 +22,9 @@ def _build(name, ctx, group, configure=False):
         dst_dirname = pattern.rstrip('.tar.gz') % version
         for server in gv['servers']:
             logger.info('Connect to %s' % server)
+            keyname = gv.get('keyname')
+            ssh = get_ssh(server, keyname, config.ROOT)
             try:
-                keyname = gv.get('keyname')
-                ssh = get_ssh(server, keyname, config.ROOT)
                 logger.info('SCP redis tar to %s' % server)
                 scp_file(ssh, file_path, config.REMOTE_SCP_DIR)
                 remote_path = os.path.join(config.REMOTE_SCP_DIR, tar_name)

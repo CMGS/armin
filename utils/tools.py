@@ -8,7 +8,7 @@ from utils.helper import output_logs, get_lines, scp_file
 
 logger = logging.getLogger(__name__)
 
-def scp_template_file(ssh, tpl_name, remote_path, **kwargs):
+def scp_template_file(ssh, remote_path, tpl_name, **kwargs):
     tpl = config.GET_CONF.get_template(tpl_name)
     tpl_stream = tpl.stream(**kwargs)
     with NamedTemporaryFile('wb') as fp:
@@ -62,6 +62,15 @@ def activate_service_by_updaterc(ssh, init):
     logger.info('Successfully added %s to update-rc' % init)
 
 def activate_service(ssh, init):
+    commands = 'cd /etc/init.d && chmod +x {init} && ./{init} start'.format(init=init)
+    logger.debug(commands)
+    out, err, retval = ssh.execute(commands, sudo=True)
+    if retval != 0:
+        logger.error('Start service failed')
+        output_logs(logger.error, err)
+        return
+    output_logs(logger.debug, out)
+
     commands = 'command -v chkconfig'
     _, _, retval = ssh.execute(commands, sudo=True)
     if retval == 0:

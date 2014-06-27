@@ -5,7 +5,7 @@ import os
 import click
 import config
 import logging
-from utils.helper import get_group, get_path, get_ssh
+from utils.helper import get_group, get_path, get_ssh, output_logs
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ def deploy_key(ctx, group):
             key = f.readline().strip()
         for server in gv['servers']:
             logger.info('Connect to %s' % server)
+            ssh = get_ssh(server, username=gv['username'], password=gv['password'])
             try:
-                ssh = get_ssh(server, username=gv['username'], password=gv['password'])
                 commands = (
                     'mkdir -p {ssh_dir};'
                     'chmod 700 {ssh_dir};'
@@ -35,8 +35,11 @@ def deploy_key(ctx, group):
                 )
                 commands = commands.format(ssh_pub_key=ssh_pub_key, ssh_dir=ssh_dir)
                 logger.debug(commands)
-                stdout, _, _ = ssh.execute(commands, sudo=True)
-                if not check_key(stdout, key):
+                out, err, retval = ssh.execute(commands, sudo=True)
+                if retval != 0:
+                    output_logs(logger.error, err)
+                    return
+                if not check_key(out, key):
                     continue
                 commands = (
                     'echo "{key}" >> {ssh_pub_key};'
@@ -44,11 +47,12 @@ def deploy_key(ctx, group):
                 )
                 commands = commands.format(ssh_pub_key=ssh_pub_key, key=key)
                 logger.debug(commands)
-                _, _, retval = ssh.execute(commands, sudo=True)
+                _, err, retval = ssh.execute(commands, sudo=True)
                 if retval == 0:
                     logger.info('Deploy succeeded')
                 else:
-                    logger.warn('Deploy failed')
+                    logger.error('Deploy failed')
+                    output_logs(logger.error, err)
             except Exception:
                 logger.exception('Process in %s failed' % server)
             else:

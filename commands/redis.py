@@ -43,8 +43,8 @@ def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
     dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
     remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname)
 
+    ssh = get_ssh(server, keyname, config.ROOT)
     try:
-        ssh = get_ssh(server, keyname, config.ROOT)
         send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof)
         install_redis(ssh, remote_path, home, port)
     except Exception:
@@ -57,15 +57,14 @@ def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
 
 def send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
     slaveof = 'slaveof {0} {1}'.format(*get_address(slaveof)) if slaveof else ''
-    path = os.path.join(remote_path, config.REDIS_CONF)
-    tpl = config.GET_CONF.get_template(config.REDIS_CONF)
-    tpl_stream = tpl.stream(
+    remote_path = os.path.join(remote_path, config.REDIS_CONF)
+    scp_template_file(
+        ssh, remote_path, config.REDIS_CONF, \
         slaveof=slaveof, \
         maxmemory=maxmemory, \
         server=server, \
         port=port, \
     )
-    scp_template_file(ssh, tpl_stream, path)
 
 def install_redis(ssh, remote_path, home, port):
     path = os.path.join(remote_path, 'utils')

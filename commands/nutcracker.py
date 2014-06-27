@@ -57,8 +57,7 @@ def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_siz
     run_dir = os.path.join(home, 'run')
 
     init = config.NUTCRACKER_INITFILE_PATTERN.format(port=port)
-    init_file = os.path.join('/etc/init.d', init)
-    etc_file = os.path.join(etc_dir, config.NUTCRACKER_ETCFILE_PATTERN.format(port=port))
+    etcfile = os.path.join(etc_dir, config.NUTCRACKER_ETCFILE_PATTERN.format(port=port))
 
     logfile = os.path.join(log_dir, config.NUTCRACKER_LOGFILE_PATTERN.format(port=port))
     pidfile = os.path.join(run_dir, config.NUTCRACKER_PIDFILE_PATTERN.format(port=port))
@@ -72,29 +71,22 @@ def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_siz
             logger.error('Create nutcracker dirs failed')
             output_logs(logger.error, err)
             return
+
         with NamedTemporaryFile('wb') as fp:
             yaml.safe_dump(defines, fp, default_flow_style=False)
             fp.flush()
-            scp_file(ssh, fp.name, etc_file)
-        logger.debug(etc_file)
+            scp_file(ssh, fp.name, etcfile)
+        logger.debug(etcfile)
         logger.info('Deploy config file in %s was done' % server)
 
+        remote_path = os.path.join('/etc/init.d', init)
         scp_template_file(
-            ssh, config.NUTCRACKER_INIT, init_file, \
-            pidfile=pidfile, etc_file=etc_file, \
+            ssh, remote_path, config.NUTCRACKER_INIT, \
+            pidfile=pidfile, etcfile=etcfile, \
             logfile=logfile, stats_port=stats_port, \
             mbuf_size=mbuf_size, \
         )
         logger.info('Deploy init file in %s was done' % server)
-
-        commands = 'chmod +x {init_file} && {init_file} start'.format(init_file=init_file)
-        logger.debug(commands)
-        out, err, retval = ssh.execute(commands, sudo=True)
-        if retval != 0:
-            logger.error('Start redis sentinel failed')
-            output_logs(logger.error, err)
-            return
-        output_logs(logger.debug, out)
         activate_service(ssh, init)
     except Exception:
         logger.exception('Install in %s failed' % server)

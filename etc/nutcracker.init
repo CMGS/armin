@@ -2,7 +2,7 @@
 
 EXEC=/usr/local/sbin/nutcracker
 PIDFILE={{ pidfile }}
-CONF={{ etc_file }}
+CONF={{ etcfile }}
 LOGFILE={{ logfile }}
 STATS_PORT={{ stats_port }}
 MBUF_SIZE={{ mbuf_size }}

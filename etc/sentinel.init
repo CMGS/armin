@@ -3,7 +3,7 @@
 EXEC=/usr/local/bin/redis-server
 CLIEXEC=/usr/local/bin/redis-cli
 PIDFILE={{ pidfile }}
-CONF={{ etc_file }}
+CONF={{ etcfile }}
 REDISPORT="{{ port }}"
 
 case "$1" in

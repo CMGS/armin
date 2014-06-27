@@ -58,8 +58,7 @@ def deploy_sentinel(server, port, keyname, home, defines):
     run_dir = os.path.join(home, 'run')
 
     init = config.SENTINEL_INITFILE_PATTERN.format(port=port)
-    init_file = os.path.join('/etc/init.d', init)
-    etc_file = os.path.join(etc_dir, config.SENTINEL_ETCFILE_PATTERN.format(port=port))
+    etcfile = os.path.join(etc_dir, config.SENTINEL_ETCFILE_PATTERN.format(port=port))
 
     logfile = os.path.join(log_dir, config.SENTINEL_LOGFILE_PATTERN.format(port=port))
     pidfile = os.path.join(run_dir, config.SENTINEL_PIDFILE_PATTERN.format(port=port))
@@ -75,27 +74,19 @@ def deploy_sentinel(server, port, keyname, home, defines):
             return
 
         scp_template_file(
-            ssh, config.SENTINEL_CONF, etc_file, \
+            ssh, etcfile, config.SENTINEL_CONF, \
             port=port, home=home, pidfile=pidfile, \
             logfile=logfile, defines=defines, \
         )
         logger.info('Deploy config file in %s was done' % server)
 
+        remote_path = os.path.join('/etc/init.d', init)
         scp_template_file(
-            ssh, config.SENTINEL_INIT, init_file, \
-            pidfile=pidfile, etc_file=etc_file, \
+            ssh, remote_path, config.SENTINEL_INIT, \
+            pidfile=pidfile, etcfile=etcfile, \
             port=port, \
         )
         logger.info('Deploy init file in %s was done' % server)
-
-        commands = 'chmod +x {init_file} && {init_file} start'.format(init_file=init_file)
-        logger.debug(commands)
-        out, err, retval = ssh.execute(commands, sudo=True)
-        if retval != 0:
-            logger.error('Start redis sentinel failed')
-            output_logs(logger.error, err)
-            return
-        output_logs(logger.debug, out)
         activate_service(ssh, init)
     except Exception:
         logger.exception('Install in %s failed' % server)
