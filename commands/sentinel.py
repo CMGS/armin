@@ -17,58 +17,71 @@ logger = logging.getLogger(__name__)
 def start_sentinel(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     sentinel = config.REDIS[cluster]['sentinel']
-    do_control_sentinel(sentinel, 'stop')
+    keyname = sentinel.pop('meta', {}).get('keyname')
+    do_control_sentinel(sentinel, keyname, 'stop')
 
 @click.argument('cluster')
 @click.pass_context
 def stop_sentinel(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     sentinel = config.REDIS[cluster]['sentinel']
-    do_control_sentinel(sentinel, 'stop')
+    keyname = sentinel.pop('meta', {}).get('keyname')
+    do_control_sentinel(sentinel, keyname, 'stop')
 
 @click.argument('cluster')
 @click.pass_context
 def restart_sentinel(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     sentinel = config.REDIS[cluster]['sentinel']
-    do_control_sentinel(sentinel, 'restart')
+    keyname = sentinel.pop('meta', {}).get('keyname')
+    do_control_sentinel(sentinel, keyname, 'restart')
 
 @click.argument('cluster')
 @click.pass_context
 def deploy_sentinel(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     sentinel = config.REDIS[cluster]['sentinel']
-    for server, values in sentinel.iteritems():
-        keyname = values.get('keyname', None)
-        home = values.get('home', None)
-        if not keyname or not home:
-            logger.error('There is no keyname or home defined for %s' % server)
-            continue
-        quorum = values.get('quorum', config.DEFAULT_SENTINEL_QUORUM)
-        down_after_milliseconds = values.get(
-            'down-after-milliseconds', config.DEFAULT_SENTINEL_DOWN_AFTER_MILLISECONDS
-        )
-        failover_timeout = values.get('failover-timeout', config.DEFAULT_SENTINEL_FAILOVER_TIMEOUT)
-        parallel_syncs = values.get('parallel-syncs', config.DEFAULT_SENTINEL_PARALLEL_SYNCS)
+    meta = sentinel.pop('meta', {})
+    do_deploy_sentinel(sentinel, **meta)
 
-        do_deploy_sentinel(
-            server, keyname, home, \
-            values['masters'], \
-            quorum, down_after_milliseconds, \
-            parallel_syncs, failover_timeout, \
-        )
-
-def do_control_sentinel(sentinel, action='start'):
+def do_deploy_sentinel(
+    sentinel, keyname=None, home=None, \
+    quorum=config.DEFAULT_SENTINEL_QUORUM, \
+    down_after_milliseconds=config.DEFAULT_SENTINEL_DOWN_AFTER_MILLISECONDS, \
+    failover_timeout=config.DEFAULT_SENTINEL_FAILOVER_TIMEOUT, \
+    parallel_syncs=config.DEFAULT_SENTINEL_PARALLEL_SYNCS, \
+):
     for service_addr, values in sentinel.iteritems():
-        keyname = values.get('keyname', None)
+        server_keyname = values.get('keyname', keyname)
+        service_home = values.get('home', home)
+        if not server_keyname or not service_home:
+            logger.error('There is no keyname or home defined for %s' % service_addr)
+            continue
+        service_quorum = values.get('quorum', quorum)
+        service_down_after_milliseconds = values.get(
+            'down-after-milliseconds', down_after_milliseconds
+        )
+        service_failover_timeout = values.get('failover_timeout', failover_timeout)
+        service_parallel_syncs = values.get('parallel-syncs', parallel_syncs)
+
+        install_sentinel(
+            service_addr, server_keyname, service_home, \
+            values['masters'], \
+            service_quorum, service_down_after_milliseconds, \
+            service_parallel_syncs, service_failover_timeout, \
+        )
+
+def do_control_sentinel(sentinel, keyname=None, action='start'):
+    for service_addr, values in sentinel.iteritems():
+        server_keyname = values.get('keyname', keyname)
         control_service(
             service_addr, \
-            keyname, 'sentinel', \
+            server_keyname, 'sentinel', \
             config.SENTINEL_INITFILE_PATTERN, \
             action=action, \
         )
 
-def do_deploy_sentinel(
+def install_sentinel(
     server, keyname, home, masters, quorum, \
     down_after_milliseconds, parallel_syncs, \
     failover_timeout, \

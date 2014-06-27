@@ -15,34 +15,39 @@ logger = logging.getLogger(__name__)
 def deploy_redis(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     redis = config.REDIS[cluster]['redis']
-    do_deploy_redis(redis, config.DEFAULT_REDIS_HOME, config.DEFAULT_REDIS_MAXMEMORY)
+    meta = redis.pop('meta', {})
+    do_deploy_redis(redis, **meta)
 
 @click.argument('cluster')
 @click.pass_context
 def start_redis(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     redis = config.REDIS[cluster]['redis']
-    do_control_redis(redis)
+    keyname = redis.pop('meta', {}).get('keyname')
+    do_control_redis(redis, keyname)
 
 @click.argument('cluster')
 @click.pass_context
 def stop_redis(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     redis = config.REDIS[cluster]['redis']
-    do_control_redis(redis, action='stop')
+    keyname = redis.pop('meta', {}).get('keyname')
+    do_control_redis(redis, keyname, action='stop')
 
 @click.argument('cluster')
 @click.pass_context
 def restart_redis(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     redis = config.REDIS[cluster]['redis']
-    do_control_redis(redis, action='restart')
+    keyname = redis.pop('meta', {}).get('keyname')
+    do_control_redis(redis, keyname, action='restart')
 
 def do_control_redis(redis, keyname=None, action='start'):
     for service_addr, values in redis.iteritems():
+        server_keyname = values.get('keyname', keyname)
         control_service(
             service_addr, \
-            keyname, 'redis', \
+            server_keyname, 'redis', \
             config.REDIS_INITFILE_PATTERN, \
             action=action, \
         )
@@ -50,24 +55,30 @@ def do_control_redis(redis, keyname=None, action='start'):
         if slaves:
             do_control_redis(slaves, keyname, action)
 
-def do_deploy_redis(redis, home, maxmemory, keyname=None, version=None, slaveof=None):
-    for server, values in redis.iteritems():
+def do_deploy_redis(
+    redis, \
+    keyname=None, version=None, \
+    maxmemory=config.DEFAULT_REDIS_MAXMEMORY, \
+    home=config.DEFAULT_REDIS_HOME, \
+    slaveof=None, \
+):
+    for service_addr, values in redis.iteritems():
         values = values or {}
-        keyname = values.get('keyname', keyname)
-        version = values.get('version', version)
-        if not keyname or not version:
-            logger.error('There is no keyname or version defined for %s' % server)
+        server_keyname = values.get('keyname', keyname)
+        service_version = values.get('version', version)
+        if not server_keyname or not service_version:
+            logger.error('There is no keyname or version defined for %s' % service_addr)
             continue
-        logger.info('Connect to master %s' % server)
-        home = values.get('home', home)
-        maxmemory = values.get('maxmemory', maxmemory)
-        install_redis(server, keyname, version, maxmemory, home, slaveof)
+        logger.info('Connect to master %s' % service_addr)
+        service_home = values.get('home', home)
+        service_maxmem = values.get('maxmemory', maxmemory)
+        install_redis(service_addr, server_keyname, service_version, service_maxmem, service_home, slaveof)
         slaves = values.get('slaves', None)
         if slaves:
-            do_deploy_redis(slaves, home, maxmemory, keyname, version, server)
+            do_deploy_redis(slaves, server_keyname, service_version, service_maxmem, service_home, service_addr)
 
-def install_redis(server, keyname, version, maxmemory, home, slaveof=None):
-    server, port = get_address(server)
+def install_redis(service_addr, keyname, version, maxmemory, home, slaveof=None):
+    server, port = get_address(service_addr)
 
     dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
     remote_path = os.path.join(config.REMOTE_SCP_DIR, dst_dirname)

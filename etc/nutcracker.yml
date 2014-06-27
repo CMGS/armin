@@ -1,0 +1,17 @@
+{{ cluster }}:
+  listen: {{ addr }}
+  hash: fnv1a_64
+  distribution: ketama
+  preconnect: true
+  auto_eject_hosts: false
+  redis: true
+  hash_tag: "{}"
+  backlog: 10240
+  timeout: 400
+  server_connections: 1
+  server_retry_timeout: 2000
+  server_failure_limit: 2
+  servers:
+    {% for r in rds %}- {{ r }}:1
+    {% endfor %}
+

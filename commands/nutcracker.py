@@ -2,14 +2,12 @@
 #coding:utf-8
 
 import os
-import yaml
 import click
 import config
 import logging
-from tempfile import NamedTemporaryFile
 
 from utils.helper import get_ssh, get_address, \
-    output_logs, scp_file, params_check
+    output_logs, params_check
 from utils.tools import activate_service, start_service, \
     scp_template_file, control_service
 
@@ -20,57 +18,59 @@ logger = logging.getLogger(__name__)
 def start_nutcracker(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     nutcracker = config.REDIS[cluster]['nutcracker']
-    proxy = nutcracker.pop('proxy')
-    do_control_nutcracker(proxy)
+    keyname = nutcracker.pop('meta', {}).get('keyname')
+    do_control_nutcracker(nutcracker, keyname)
 
 @click.argument('cluster')
 @click.pass_context
 def stop_nutcracker(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     nutcracker = config.REDIS[cluster]['nutcracker']
-    proxy = nutcracker.pop('proxy')
-    do_control_nutcracker(proxy, action='stop')
+    keyname = nutcracker.pop('meta', {}).get('keyname')
+    do_control_nutcracker(nutcracker, keyname, action='stop')
 
 @click.argument('cluster')
 @click.pass_context
 def restart_nutcracker(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     nutcracker = config.REDIS[cluster]['nutcracker']
-    proxy = nutcracker.pop('proxy')
-    do_control_nutcracker(proxy, action='restart')
+    keyname = nutcracker.pop('meta', {}).get('keyname')
+    do_control_nutcracker(nutcracker, keyname, action='restart')
 
 @click.argument('cluster')
 @click.pass_context
 def deploy_nutcracker(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     nutcracker = config.REDIS[cluster]['nutcracker']
-    proxy = nutcracker.pop('proxy')
-    for server, values in proxy.iteritems():
-        keyname = values['keyname']
-        stats_port = values.pop('stats_port', config.DEFAULT_NUTCRACKER_STATS_PORT)
-        home = values.pop('home', config.DEFAULT_NUTCRACKER_HOME)
-        mbuf_size = values.pop('mbuf_size', config.DEFAULT_NUTCRACKER_MBUF_SIZE)
-
-        do_deploy_nutcracker(
-            cluster, nutcracker, server, values, \
-            keyname, home, stats_port, mbuf_size, \
-        )
+    meta = nutcracker.pop('meta', {})
+    do_deploy_nutcracker(cluster, nutcracker, **meta)
 
 def do_deploy_nutcracker(
-    cluster, nutcracker, server, values, \
-    keyname, home, stats_port, mbuf_size, \
+    cluster, nutcracker, \
+    keyname=None, home=config.DEFAULT_NUTCRACKER_HOME, \
+    stats_port=config.DEFAULT_NUTCRACKER_STATS_PORT, \
+    mbuf_size=config.DEFAULT_NUTCRACKER_MBUF_SIZE, \
+    masters=[], \
 ):
+    for service_addr, values in nutcracker.iteritems():
+        values = values or {}
+        server_keyname = values.get('keyname', keyname)
+        service_home = values.get('home', home)
+        if not server_keyname or not service_home:
+            logger.error('There is no keyname or home defined for %s' % service_addr)
+            continue
+        service_stats_port = values.get('stats_port', stats_port)
+        service_mbuf_size = values.get('mbuf_size', mbuf_size)
+        service_masters = values.get('masters', masters)
 
-    defines = {}
-    for k, v in nutcracker.iteritems():
-        defines[k] = values.get(k) or v
-    defines['listen'] = server
-    defines = {cluster:defines}
+        config_and_install(
+            cluster, service_addr, server_keyname, \
+            service_home, service_stats_port, \
+            service_mbuf_size, service_masters, \
+        )
 
-    server, port = get_address(server)
-    config_and_install(server, port, keyname, home, defines, stats_port, mbuf_size)
-
-def config_and_install(server, port, keyname, home, defines, stats_port, mbuf_size):
+def config_and_install(cluster, service_addr, keyname, home, stats_port, mbuf_size, servers):
+    server, port = get_address(service_addr)
     etc_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')
     run_dir = os.path.join(home, 'run')
@@ -82,6 +82,7 @@ def config_and_install(server, port, keyname, home, defines, stats_port, mbuf_si
     pidfile = os.path.join(run_dir, config.NUTCRACKER_PIDFILE_PATTERN.format(port=port))
 
     ssh = get_ssh(server, keyname, config.ROOT)
+
     try:
         commands = 'mkdir -p %s %s %s %s' % (home, etc_dir, log_dir, run_dir)
         logger.debug(commands)
@@ -91,11 +92,12 @@ def config_and_install(server, port, keyname, home, defines, stats_port, mbuf_si
             output_logs(logger.error, err)
             return
 
-        with NamedTemporaryFile('wb') as fp:
-            yaml.safe_dump(defines, fp, default_flow_style=False)
-            fp.flush()
-            scp_file(ssh, fp.name, etcfile)
-        logger.debug(etcfile)
+        scp_template_file(
+            ssh, etcfile, config.NUTCRACKER_CONF, \
+            cluster=cluster, \
+            addr=service_addr, \
+            rds=servers, \
+        )
         logger.info('Deploy config file in %s was done' % server)
 
         remote_path = os.path.join('/etc/init.d', init)
@@ -116,12 +118,15 @@ def config_and_install(server, port, keyname, home, defines, stats_port, mbuf_si
         logger.info('Close connection to %s' % server)
         ssh.close()
 
-def do_control_nutcracker(proxy, action='start'):
+def do_control_nutcracker(proxy, keyname, action='start'):
     for service_addr, values in proxy.iteritems():
-        keyname = values.get('keyname', None)
+        server_keyname = values.get('keyname', keyname)
+        if not keyname:
+            logger.error('There is no keyname defined for %s' % service_addr)
+            continue
         control_service(
             service_addr, \
-            keyname, 'nutcracker', \
+            server_keyname, 'nutcracker', \
             config.NUTCRACKER_INITFILE_PATTERN, \
             action=action, \
         )
