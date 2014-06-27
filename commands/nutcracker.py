@@ -9,33 +9,9 @@ import logging
 from utils.helper import get_ssh, get_address, \
     output_logs, params_check
 from utils.tools import activate_service, start_service, \
-    scp_template_file, control_service
+    scp_template_file
 
 logger = logging.getLogger(__name__)
-
-@click.argument('cluster')
-@click.pass_context
-def start_nutcracker(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    nutcracker = config.REDIS[cluster]['nutcracker']
-    keyname = nutcracker.pop('meta', {}).get('keyname')
-    do_control_nutcracker(nutcracker, keyname)
-
-@click.argument('cluster')
-@click.pass_context
-def stop_nutcracker(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    nutcracker = config.REDIS[cluster]['nutcracker']
-    keyname = nutcracker.pop('meta', {}).get('keyname')
-    do_control_nutcracker(nutcracker, keyname, action='stop')
-
-@click.argument('cluster')
-@click.pass_context
-def restart_nutcracker(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    nutcracker = config.REDIS[cluster]['nutcracker']
-    keyname = nutcracker.pop('meta', {}).get('keyname')
-    do_control_nutcracker(nutcracker, keyname, action='restart')
 
 @click.argument('cluster')
 @click.pass_context
@@ -117,17 +93,4 @@ def config_and_install(cluster, service_addr, keyname, home, stats_port, mbuf_si
     finally:
         logger.info('Close connection to %s' % server)
         ssh.close()
-
-def do_control_nutcracker(proxy, keyname, action='start'):
-    for service_addr, values in proxy.iteritems():
-        server_keyname = values.get('keyname', keyname)
-        if not keyname:
-            logger.error('There is no keyname defined for %s' % service_addr)
-            continue
-        control_service(
-            service_addr, \
-            server_keyname, 'nutcracker', \
-            config.NUTCRACKER_INITFILE_PATTERN, \
-            action=action, \
-        )
 

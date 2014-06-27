@@ -5,7 +5,7 @@ import os
 import click
 import config
 import logging
-from utils.tools import scp_template_file, control_service
+from utils.tools import scp_template_file
 from utils.helper import get_ssh, get_address, output_logs, params_check
 
 logger = logging.getLogger(__name__)
@@ -17,43 +17,6 @@ def deploy_redis(ctx, cluster):
     redis = config.REDIS[cluster]['redis']
     meta = redis.pop('meta', {})
     do_deploy_redis(redis, **meta)
-
-@click.argument('cluster')
-@click.pass_context
-def start_redis(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    redis = config.REDIS[cluster]['redis']
-    keyname = redis.pop('meta', {}).get('keyname')
-    do_control_redis(redis, keyname)
-
-@click.argument('cluster')
-@click.pass_context
-def stop_redis(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    redis = config.REDIS[cluster]['redis']
-    keyname = redis.pop('meta', {}).get('keyname')
-    do_control_redis(redis, keyname, action='stop')
-
-@click.argument('cluster')
-@click.pass_context
-def restart_redis(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    redis = config.REDIS[cluster]['redis']
-    keyname = redis.pop('meta', {}).get('keyname')
-    do_control_redis(redis, keyname, action='restart')
-
-def do_control_redis(redis, keyname=None, action='start'):
-    for service_addr, values in redis.iteritems():
-        server_keyname = values.get('keyname', keyname)
-        control_service(
-            service_addr, \
-            server_keyname, 'redis', \
-            config.REDIS_INITFILE_PATTERN, \
-            action=action, \
-        )
-        slaves = values.get('slaves', None)
-        if slaves:
-            do_control_redis(slaves, keyname, action)
 
 def do_deploy_redis(
     redis, \

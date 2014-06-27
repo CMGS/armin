@@ -7,34 +7,10 @@ import config
 import logging
 
 from utils.tools import activate_service, start_service, \
-        scp_template_file, control_service
+        scp_template_file
 from utils.helper import get_ssh, get_address, Obj, output_logs, params_check
 
 logger = logging.getLogger(__name__)
-
-@click.argument('cluster')
-@click.pass_context
-def start_sentinel(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    sentinel = config.REDIS[cluster]['sentinel']
-    keyname = sentinel.pop('meta', {}).get('keyname')
-    do_control_sentinel(sentinel, keyname, 'stop')
-
-@click.argument('cluster')
-@click.pass_context
-def stop_sentinel(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    sentinel = config.REDIS[cluster]['sentinel']
-    keyname = sentinel.pop('meta', {}).get('keyname')
-    do_control_sentinel(sentinel, keyname, 'stop')
-
-@click.argument('cluster')
-@click.pass_context
-def restart_sentinel(ctx, cluster):
-    params_check(ctx, config.REDIS, cluster)
-    sentinel = config.REDIS[cluster]['sentinel']
-    keyname = sentinel.pop('meta', {}).get('keyname')
-    do_control_sentinel(sentinel, keyname, 'restart')
 
 @click.argument('cluster')
 @click.pass_context
@@ -69,16 +45,6 @@ def do_deploy_sentinel(
             values['masters'], \
             service_quorum, service_down_after_milliseconds, \
             service_parallel_syncs, service_failover_timeout, \
-        )
-
-def do_control_sentinel(sentinel, keyname=None, action='start'):
-    for service_addr, values in sentinel.iteritems():
-        server_keyname = values.get('keyname', keyname)
-        control_service(
-            service_addr, \
-            server_keyname, 'sentinel', \
-            config.SENTINEL_INITFILE_PATTERN, \
-            action=action, \
         )
 
 def install_sentinel(
