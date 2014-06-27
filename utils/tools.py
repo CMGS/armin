@@ -4,7 +4,8 @@
 import config
 import logging
 from tempfile import NamedTemporaryFile
-from utils.helper import output_logs, get_lines, scp_file
+from utils.helper import output_logs, get_lines, scp_file, \
+        get_ssh, get_address
 
 logger = logging.getLogger(__name__)
 
@@ -93,4 +94,24 @@ def stop_service(ssh, init):
         output_logs(logger.error, err)
         return
     output_logs(logger.debug, out)
+
+def control_service(service_addr, keyname, service_name, init_pattern, action='start'):
+    server, port = get_address(service_addr)
+    init = init_pattern.format(port=port)
+    ssh = get_ssh(server, keyname, config.ROOT)
+    try:
+        if action == 'start':
+            start_service(ssh, init)
+        elif action == 'stop':
+            stop_service(ssh, init)
+        elif action == 'restart':
+            stop_service(ssh, init)
+            start_service(ssh, init)
+    except Exception:
+        logger.exception('%s %s in %s failed' % (action, service_name, service_addr))
+    else:
+        logger.info('%s %s in %s was done' % (action, service_name, service_addr))
+    finally:
+        logger.info('Close connection to %s' % server)
+        ssh.close()
 

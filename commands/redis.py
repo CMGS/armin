@@ -5,79 +5,50 @@ import os
 import click
 import config
 import logging
-from utils.helper import get_ssh, get_address, output_logs
-from utils.tools import scp_template_file, stop_service, start_service
+from utils.tools import scp_template_file, control_service
+from utils.helper import get_ssh, get_address, output_logs, params_check
 
 logger = logging.getLogger(__name__)
 
 @click.argument('cluster')
 @click.pass_context
 def deploy_redis(ctx, cluster):
-    cluster = config.REDIS.get(cluster)
-    if not cluster:
-        ctx.fail('%s not define' % cluster)
-
-    redis = cluster['redis']
-
+    params_check(ctx, config.REDIS, cluster)
+    redis = config.REDIS[cluster]['redis']
     do_deploy_redis(redis, config.DEFAULT_REDIS_HOME, config.DEFAULT_REDIS_MAXMEMORY)
 
 @click.argument('cluster')
 @click.pass_context
 def start_redis(ctx, cluster):
-    cluster = config.REDIS.get(cluster)
-    if not cluster:
-        ctx.fail('%s not define' % cluster)
-
-    redis = cluster['redis']
-    do_start_redis(redis)
+    params_check(ctx, config.REDIS, cluster)
+    redis = config.REDIS[cluster]['redis']
+    do_control_redis(redis)
 
 @click.argument('cluster')
 @click.pass_context
 def stop_redis(ctx, cluster):
-    cluster = config.REDIS.get(cluster)
-    if not cluster:
-        ctx.fail('%s not define' % cluster)
+    params_check(ctx, config.REDIS, cluster)
+    redis = config.REDIS[cluster]['redis']
+    do_control_redis(redis, action='stop')
 
-    redis = cluster['redis']
-    do_stop_redis(redis)
+@click.argument('cluster')
+@click.pass_context
+def restart_redis(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    redis = config.REDIS[cluster]['redis']
+    do_control_redis(redis, action='restart')
 
-def do_start_redis(redis, keyname=None):
-    for server, values in redis.iteritems():
-        server, port = get_address(server)
-        keyname = values.get('keyname', keyname)
-        init = config.REDIS_INITFILE_PATTERN.format(port=port)
-        ssh = get_ssh(server, keyname, config.ROOT)
-        try:
-            start_service(ssh, init)
-        except Exception:
-            logger.exception('Start redis in %s failed' % server)
-        else:
-            logger.info('Start redis in %s was done' % server)
-        finally:
-            logger.info('Close connection to %s' % server)
-            ssh.close()
+def do_control_redis(redis, keyname=None, action='start'):
+    for service_addr, values in redis.iteritems():
+        control_service(
+            service_addr, \
+            keyname, 'redis', \
+            config.REDIS_INITFILE_PATTERN, \
+            action=action, \
+        )
         slaves = values.get('slaves', None)
         if slaves:
-            do_start_redis(slaves, keyname)
-
-def do_stop_redis(redis, keyname=None):
-    for server, values in redis.iteritems():
-        server, port = get_address(server)
-        keyname = values.get('keyname', keyname)
-        init = config.REDIS_INITFILE_PATTERN.format(port=port)
-        ssh = get_ssh(server, keyname, config.ROOT)
-        try:
-            stop_service(ssh, init)
-        except Exception:
-            logger.exception('Stop redis in %s failed' % server)
-        else:
-            logger.info('Stop redis in %s was done' % server)
-        finally:
-            logger.info('Close connection to %s' % server)
-            ssh.close()
-        slaves = values.get('slaves', None)
-        if slaves:
-            do_stop_redis(slaves, keyname)
+            do_control_redis(slaves, keyname, action)
 
 def do_deploy_redis(redis, home, maxmemory, keyname=None, version=None, slaveof=None):
     for server, values in redis.iteritems():

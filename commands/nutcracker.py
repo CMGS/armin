@@ -8,32 +8,51 @@ import config
 import logging
 from tempfile import NamedTemporaryFile
 
-from utils.helper import get_ssh, get_address, output_logs, scp_file
-from utils.tools import activate_service, start_service, scp_template_file
+from utils.helper import get_ssh, get_address, \
+    output_logs, scp_file, params_check
+from utils.tools import activate_service, start_service, \
+    scp_template_file, control_service
 
 logger = logging.getLogger(__name__)
 
 @click.argument('cluster')
 @click.pass_context
 def start_nutcracker(ctx, cluster):
-    cluster_name = cluster
-    cluster = config.REDIS.get(cluster)
-    if not cluster:
-        ctx.fail('%s not define' % cluster)
-
-    nutcracker = cluster['nutcracker']
-
+    params_check(ctx, config.REDIS, cluster)
+    nutcracker = config.REDIS[cluster]['nutcracker']
     proxy = nutcracker.pop('proxy')
+    do_control_nutcracker(proxy)
 
+@click.argument('cluster')
+@click.pass_context
+def stop_nutcracker(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    nutcracker = config.REDIS[cluster]['nutcracker']
+    proxy = nutcracker.pop('proxy')
+    do_control_nutcracker(proxy, action='stop')
+
+@click.argument('cluster')
+@click.pass_context
+def restart_nutcracker(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    nutcracker = config.REDIS[cluster]['nutcracker']
+    proxy = nutcracker.pop('proxy')
+    do_control_nutcracker(proxy, action='restart')
+
+@click.argument('cluster')
+@click.pass_context
+def deploy_nutcracker(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    nutcracker = config.REDIS[cluster]['nutcracker']
+    proxy = nutcracker.pop('proxy')
     for server, values in proxy.iteritems():
-
         keyname = values['keyname']
         stats_port = values.pop('stats_port', config.DEFAULT_NUTCRACKER_STATS_PORT)
         home = values.pop('home', config.DEFAULT_NUTCRACKER_HOME)
         mbuf_size = values.pop('mbuf_size', config.DEFAULT_NUTCRACKER_MBUF_SIZE)
 
         do_deploy_nutcracker(
-            cluster_name, nutcracker, server, values, \
+            cluster, nutcracker, server, values, \
             keyname, home, stats_port, mbuf_size, \
         )
 
@@ -49,9 +68,9 @@ def do_deploy_nutcracker(
     defines = {cluster:defines}
 
     server, port = get_address(server)
-    deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_size)
+    config_and_install(server, port, keyname, home, defines, stats_port, mbuf_size)
 
-def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_size):
+def config_and_install(server, port, keyname, home, defines, stats_port, mbuf_size):
     etc_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')
     run_dir = os.path.join(home, 'run')
@@ -96,4 +115,14 @@ def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_siz
     finally:
         logger.info('Close connection to %s' % server)
         ssh.close()
+
+def do_control_nutcracker(proxy, action='start'):
+    for service_addr, values in proxy.iteritems():
+        keyname = values.get('keyname', None)
+        control_service(
+            service_addr, \
+            keyname, 'nutcracker', \
+            config.NUTCRACKER_INITFILE_PATTERN, \
+            action=action, \
+        )
 

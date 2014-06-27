@@ -9,6 +9,11 @@ logger = logging.getLogger(__name__)
 
 class Obj(object): pass
 
+def params_check(ctx, defines, *args):
+    for arg in args:
+        if arg not in defines:
+            ctx.fail('%s not define' % arg)
+
 def output_logs(log, lines):
     for line in lines:
         log(line.strip('\n'))

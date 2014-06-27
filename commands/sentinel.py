@@ -6,19 +6,38 @@ import click
 import config
 import logging
 
-from utils.helper import get_ssh, get_address, Obj, output_logs
-from utils.tools import activate_service, start_service, scp_template_file
+from utils.tools import activate_service, start_service, \
+        scp_template_file, control_service
+from utils.helper import get_ssh, get_address, Obj, output_logs, params_check
 
 logger = logging.getLogger(__name__)
 
 @click.argument('cluster')
 @click.pass_context
 def start_sentinel(ctx, cluster):
-    cluster = config.REDIS.get(cluster)
-    if not cluster:
-        ctx.fail('%s not define' % cluster)
+    params_check(ctx, config.REDIS, cluster)
+    sentinel = config.REDIS[cluster]['sentinel']
+    do_control_sentinel(sentinel, 'stop')
 
-    sentinel = cluster['sentinel']
+@click.argument('cluster')
+@click.pass_context
+def stop_sentinel(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    sentinel = config.REDIS[cluster]['sentinel']
+    do_control_sentinel(sentinel, 'stop')
+
+@click.argument('cluster')
+@click.pass_context
+def restart_sentinel(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    sentinel = config.REDIS[cluster]['sentinel']
+    do_control_sentinel(sentinel, 'restart')
+
+@click.argument('cluster')
+@click.pass_context
+def deploy_sentinel(ctx, cluster):
+    params_check(ctx, config.REDIS, cluster)
+    sentinel = config.REDIS[cluster]['sentinel']
     for server, values in sentinel.iteritems():
         keyname = values.get('keyname', None)
         home = values.get('home', None)
@@ -39,6 +58,16 @@ def start_sentinel(ctx, cluster):
             parallel_syncs, failover_timeout, \
         )
 
+def do_control_sentinel(sentinel, action='start'):
+    for service_addr, values in sentinel.iteritems():
+        keyname = values.get('keyname', None)
+        control_service(
+            service_addr, \
+            keyname, 'sentinel', \
+            config.SENTINEL_INITFILE_PATTERN, \
+            action=action, \
+        )
+
 def do_deploy_sentinel(
     server, keyname, home, masters, quorum, \
     down_after_milliseconds, parallel_syncs, \
@@ -50,9 +79,9 @@ def do_deploy_sentinel(
         down_after_milliseconds, parallel_syncs, \
         failover_timeout, \
     )
-    deploy_sentinel(server, port, keyname, home, defines)
+    config_and_install(server, port, keyname, home, defines)
 
-def deploy_sentinel(server, port, keyname, home, defines):
+def config_and_install(server, port, keyname, home, defines):
     etc_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')
     run_dir = os.path.join(home, 'run')
