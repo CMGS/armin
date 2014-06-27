@@ -12,6 +12,6 @@
   server_retry_timeout: 2000
   server_failure_limit: 2
   servers:
-    {% for r in rds %}- {{ r }}:1
+    {% for master in masters %}- {{ master }}:1
     {% endfor %}
 

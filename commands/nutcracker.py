@@ -45,7 +45,7 @@ def do_deploy_nutcracker(
             service_mbuf_size, service_masters, \
         )
 
-def config_and_install(cluster, service_addr, keyname, home, stats_port, mbuf_size, servers):
+def config_and_install(cluster, service_addr, keyname, home, stats_port, mbuf_size, masters):
     server, port = get_address(service_addr)
     etc_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')
@@ -72,7 +72,7 @@ def config_and_install(cluster, service_addr, keyname, home, stats_port, mbuf_si
             ssh, etcfile, config.NUTCRACKER_CONF, \
             cluster=cluster, \
             addr=service_addr, \
-            rds=servers, \
+            masters=masters, \
         )
         logger.info('Deploy config file in %s was done' % server)
 
