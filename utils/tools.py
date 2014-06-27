@@ -62,15 +62,6 @@ def activate_service_by_updaterc(ssh, init):
     logger.info('Successfully added %s to update-rc' % init)
 
 def activate_service(ssh, init):
-    commands = 'cd /etc/init.d && chmod +x {init} && ./{init} start'.format(init=init)
-    logger.debug(commands)
-    out, err, retval = ssh.execute(commands, sudo=True)
-    if retval != 0:
-        logger.error('Start service failed')
-        output_logs(logger.error, err)
-        return
-    output_logs(logger.debug, out)
-
     commands = 'command -v chkconfig'
     _, _, retval = ssh.execute(commands, sudo=True)
     if retval == 0:
@@ -82,4 +73,24 @@ def activate_service(ssh, init):
         activate_service_by_updaterc(ssh, init)
         return
     logger.error('No supported init tools found')
+
+def start_service(ssh, init):
+    commands = 'cd /etc/init.d && chmod +x {init} && ./{init} start'.format(init=init)
+    logger.debug(commands)
+    out, err, retval = ssh.execute(commands, sudo=True)
+    if retval != 0:
+        logger.error('Start service failed')
+        output_logs(logger.error, err)
+        return
+    output_logs(logger.debug, out)
+
+def stop_service(ssh, init):
+    commands = 'cd /etc/init.d && ./{init} stop'.format(init=init)
+    logger.debug(commands)
+    out, err, retval = ssh.execute(commands, sudo=True)
+    if retval != 0:
+        logger.error('Stop service failed')
+        output_logs(logger.error, err)
+        return
+    output_logs(logger.debug, out)
 

@@ -8,7 +8,7 @@ import logging
 from libs.colorlog import ColorizingStreamHandler
 
 from commands.key import deploy_key
-from commands.redis import start_redis
+from commands.redis import deploy_redis, start_redis, stop_redis
 from commands.sentinel import start_sentinel
 from commands.nutcracker import start_nutcracker
 from commands.build import build_redis, build_nutcracker
@@ -30,10 +30,13 @@ def cli(ctx):
 
 commands = cli.command()
 
-commands(deploy_key)
-commands(build_redis)
-commands(build_nutcracker)
+commands(stop_redis)
 commands(start_redis)
+commands(build_redis)
+commands(deploy_redis)
+
+commands(deploy_key)
+commands(build_nutcracker)
 commands(start_sentinel)
 commands(start_nutcracker)
 

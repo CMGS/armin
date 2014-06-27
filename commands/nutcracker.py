@@ -9,7 +9,7 @@ import logging
 from tempfile import NamedTemporaryFile
 
 from utils.helper import get_ssh, get_address, output_logs, scp_file
-from utils.tools import activate_service, scp_template_file
+from utils.tools import activate_service, start_service, scp_template_file
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,7 @@ def deploy_nutcracker(server, port, keyname, home, defines, stats_port, mbuf_siz
         )
         logger.info('Deploy init file in %s was done' % server)
         activate_service(ssh, init)
+        start_service(ssh, init)
     except Exception:
         logger.exception('Install in %s failed' % server)
     else:

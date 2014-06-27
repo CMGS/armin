@@ -5,10 +5,21 @@ import os
 import click
 import config
 import logging
-from utils.tools import scp_template_file
 from utils.helper import get_ssh, get_address, output_logs
+from utils.tools import scp_template_file, stop_service, start_service
 
 logger = logging.getLogger(__name__)
+
+@click.argument('cluster')
+@click.pass_context
+def deploy_redis(ctx, cluster):
+    cluster = config.REDIS.get(cluster)
+    if not cluster:
+        ctx.fail('%s not define' % cluster)
+
+    redis = cluster['redis']
+
+    do_deploy_redis(redis, config.DEFAULT_REDIS_HOME, config.DEFAULT_REDIS_MAXMEMORY)
 
 @click.argument('cluster')
 @click.pass_context
@@ -18,8 +29,55 @@ def start_redis(ctx, cluster):
         ctx.fail('%s not define' % cluster)
 
     redis = cluster['redis']
+    do_start_redis(redis)
 
-    do_deploy_redis(redis, config.DEFAULT_REDIS_HOME, config.DEFAULT_REDIS_MAXMEMORY)
+@click.argument('cluster')
+@click.pass_context
+def stop_redis(ctx, cluster):
+    cluster = config.REDIS.get(cluster)
+    if not cluster:
+        ctx.fail('%s not define' % cluster)
+
+    redis = cluster['redis']
+    do_stop_redis(redis)
+
+def do_start_redis(redis, keyname=None):
+    for server, values in redis.iteritems():
+        server, port = get_address(server)
+        keyname = values.get('keyname', keyname)
+        init = config.REDIS_INITFILE_PATTERN.format(port=port)
+        ssh = get_ssh(server, keyname, config.ROOT)
+        try:
+            start_service(ssh, init)
+        except Exception:
+            logger.exception('Start redis in %s failed' % server)
+        else:
+            logger.info('Start redis in %s was done' % server)
+        finally:
+            logger.info('Close connection to %s' % server)
+            ssh.close()
+        slaves = values.get('slaves', None)
+        if slaves:
+            do_start_redis(slaves, keyname)
+
+def do_stop_redis(redis, keyname=None):
+    for server, values in redis.iteritems():
+        server, port = get_address(server)
+        keyname = values.get('keyname', keyname)
+        init = config.REDIS_INITFILE_PATTERN.format(port=port)
+        ssh = get_ssh(server, keyname, config.ROOT)
+        try:
+            stop_service(ssh, init)
+        except Exception:
+            logger.exception('Stop redis in %s failed' % server)
+        else:
+            logger.info('Stop redis in %s was done' % server)
+        finally:
+            logger.info('Close connection to %s' % server)
+            ssh.close()
+        slaves = values.get('slaves', None)
+        if slaves:
+            do_stop_redis(slaves, keyname)
 
 def do_deploy_redis(redis, home, maxmemory, keyname=None, version=None, slaveof=None):
     for server, values in redis.iteritems():
@@ -32,12 +90,12 @@ def do_deploy_redis(redis, home, maxmemory, keyname=None, version=None, slaveof=
         logger.info('Connect to master %s' % server)
         home = values.get('home', home)
         maxmemory = values.get('maxmemory', maxmemory)
-        deploy_redis(server, keyname, version, maxmemory, home, slaveof)
+        install_redis(server, keyname, version, maxmemory, home, slaveof)
         slaves = values.get('slaves', None)
         if slaves:
             do_deploy_redis(slaves, home, maxmemory, keyname, version, server)
 
-def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
+def install_redis(server, keyname, version, maxmemory, home, slaveof=None):
     server, port = get_address(server)
 
     dst_dirname = config.REDIS_PATTERN.rstrip('.tar.gz') % version
@@ -45,8 +103,8 @@ def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
 
     ssh = get_ssh(server, keyname, config.ROOT)
     try:
-        send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof)
-        install_redis(ssh, remote_path, home, port)
+        send_config_file(ssh, maxmemory, server, port, remote_path, slaveof)
+        config_and_install(ssh, remote_path, home, port)
     except Exception:
         logger.exception('Install in %s failed' % server)
     else:
@@ -55,7 +113,7 @@ def deploy_redis(server, keyname, version, maxmemory, home, slaveof=None):
         logger.info('Close connection to %s' % server)
         ssh.close()
 
-def send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
+def send_config_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
     slaveof = 'slaveof {0} {1}'.format(*get_address(slaveof)) if slaveof else ''
     remote_path = os.path.join(remote_path, config.REDIS_CONF)
     scp_template_file(
@@ -66,7 +124,7 @@ def send_conf_file(ssh, maxmemory, server, port, remote_path, slaveof=None):
         port=port, \
     )
 
-def install_redis(ssh, remote_path, home, port):
+def config_and_install(ssh, remote_path, home, port):
     path = os.path.join(remote_path, 'utils')
     conf_dir = os.path.join(home, 'etc')
     log_dir = os.path.join(home, 'log')

@@ -29,6 +29,7 @@ REDIS_PATTERN = 'redis-%s.tar.gz'
 PUB_KEY_PATTERN = '%s.pub'
 
 REDIS_CONF = 'redis.conf'
+REDIS_INITFILE_PATTERN = 'redis_{port}'
 DEFAULT_REDIS_MAXMEMORY = 16106127360
 DEFAULT_REDIS_HOME = '/tmp'
 

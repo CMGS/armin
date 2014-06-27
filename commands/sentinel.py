@@ -7,7 +7,7 @@ import config
 import logging
 
 from utils.helper import get_ssh, get_address, Obj, output_logs
-from utils.tools import activate_service, scp_template_file
+from utils.tools import activate_service, start_service, scp_template_file
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,7 @@ def deploy_sentinel(server, port, keyname, home, defines):
         )
         logger.info('Deploy init file in %s was done' % server)
         activate_service(ssh, init)
+        start_service(ssh, init)
     except Exception:
         logger.exception('Install in %s failed' % server)
     else:
