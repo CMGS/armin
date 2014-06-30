@@ -6,6 +6,7 @@ import config
 from utils.helper import params_check
 from utils.tools import control_service
 
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,18 @@ def redis_service(ctx, cluster, service, action):
         ctx.fail('No support action %s' % action)
     r = 'slaves' if service == 'redis' else None
     manage_service(service, keyname, define, action, r)
+
+@click.argument('cluster')
+@click.argument('service')
+@click.pass_context
+def deploy_redis(ctx, cluster, service):
+    params_check(ctx, config.REDIS, cluster)
+    define = config.REDIS[cluster].get(service)
+    if not define:
+        ctx.fail('There is no %s define in Redis Cluster' % service)
+    meta = define.pop('meta', {})
+    service = __import__('commands.%s' % service, globals(), locals(), [service], -1)
+    service.do_deploy(cluster, define, **meta)
 
 def manage_service(service, keyname, define, action, r=None):
     for service_addr, values in define.iteritems():

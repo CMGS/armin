@@ -19,9 +19,9 @@ def deploy_nutcracker(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     nutcracker = config.REDIS[cluster]['nutcracker']
     meta = nutcracker.pop('meta', {})
-    do_deploy_nutcracker(cluster, nutcracker, **meta)
+    do_deploy(cluster, nutcracker, **meta)
 
-def do_deploy_nutcracker(
+def do_deploy(
     cluster, nutcracker, \
     keyname=None, home=config.DEFAULT_NUTCRACKER_HOME, \
     stats_port=config.DEFAULT_NUTCRACKER_STATS_PORT, \

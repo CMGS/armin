@@ -5,6 +5,7 @@ import os
 import click
 import config
 import logging
+
 from utils.tools import scp_template_file
 from utils.helper import get_ssh, get_address, output_logs, params_check
 
@@ -16,10 +17,10 @@ def deploy_redis(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     redis = config.REDIS[cluster]['redis']
     meta = redis.pop('meta', {})
-    do_deploy_redis(redis, **meta)
+    do_deploy(cluster, redis, **meta)
 
-def do_deploy_redis(
-    redis, \
+def do_deploy(
+    cluster, redis, \
     keyname=None, version=None, \
     maxmemory=config.DEFAULT_REDIS_MAXMEMORY, \
     home=config.DEFAULT_REDIS_HOME, \
@@ -38,7 +39,7 @@ def do_deploy_redis(
         install_redis(service_addr, server_keyname, service_version, service_maxmem, service_home, slaveof)
         slaves = values.get('slaves', None)
         if slaves:
-            do_deploy_redis(slaves, server_keyname, service_version, service_maxmem, service_home, service_addr)
+            do_deploy(cluster, slaves, server_keyname, service_version, service_maxmem, service_home, service_addr)
 
 def install_redis(service_addr, keyname, version, maxmemory, home, slaveof=None):
     server, port = get_address(service_addr)

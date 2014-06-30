@@ -18,10 +18,10 @@ def deploy_sentinel(ctx, cluster):
     params_check(ctx, config.REDIS, cluster)
     sentinel = config.REDIS[cluster]['sentinel']
     meta = sentinel.pop('meta', {})
-    do_deploy_sentinel(sentinel, **meta)
+    do_deploy(sentinel, **meta)
 
-def do_deploy_sentinel(
-    sentinel, keyname=None, home=None, \
+def do_deploy(
+    cluster, sentinel, keyname=None, home=None, \
     quorum=config.DEFAULT_SENTINEL_QUORUM, \
     down_after_milliseconds=config.DEFAULT_SENTINEL_DOWN_AFTER_MILLISECONDS, \
     failover_timeout=config.DEFAULT_SENTINEL_FAILOVER_TIMEOUT, \

@@ -14,7 +14,9 @@ def _build(name, ctx, group, configure=False):
     groups = get_group(ctx, group)
 
     for gn, gv in groups.iteritems():
-        pattern = getattr(config, '%s_PATTERN' % name.upper())
+        pattern = getattr(config, '%s_PATTERN' % name.upper(), None)
+        if not pattern:
+            ctx.fail('No service pattern define')
         logger.info('Build %s in %s' % (name, gn))
         version, file_path = get_path(ctx, gv, name, config.SRC_DIR, pattern)
         logger.info('%s will extract and install' % file_path)
@@ -48,4 +50,11 @@ def build_redis(ctx, group):
 @click.pass_context
 def build_nutcracker(ctx, group):
      _build('nutcracker', ctx, group, configure=True)
+
+@click.argument('group')
+@click.argument('service')
+@click.option('--configure', is_flag=True)
+@click.pass_context
+def build(ctx, service, group, configure=False):
+    _build(service, ctx, group, configure)
 
